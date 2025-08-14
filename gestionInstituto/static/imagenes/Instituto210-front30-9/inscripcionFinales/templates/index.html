@@ -1,0 +1,44 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+
+<div class="index-body" >
+  {%if user.is_authenticated%}  
+  <br>
+  <div class="index-body">
+    <center style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <img src="/static/imagenes/logo_fondo.png">
+    </center>
+  </div>
+
+  {%else%}
+  <br>
+    <h2>Hola, bienvenidos!</h2>
+    <h4>Para acceder al sistema, loguéese.<br>Si no posee usuario, póngase en contacto con el instituto<br>Muchas Gracias!</h4>
+  {%endif%}
+</div>
+
+<style>
+  body {
+      overflow-y:hidden;
+    }
+    @media (max-width: 768px) {
+      h2,h4 {
+          font-size: 5vw; /* Tamaño de fuente más grande en pantallas más pequeñas */
+          margin-left: 20px;
+          margin-bottom: 30px;
+      }
+  }
+  
+  @media (max-width: 480px) {
+      h2,h4 {
+          font-size: 6vw; /* Tamaño de fuente aún más grande en pantallas muy pequeñas */
+          margin-left: 20px;
+          margin-bottom: 30px;
+      }
+  }
+</style>  
+{% endblock %}
+
