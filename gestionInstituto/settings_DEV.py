@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'inscripcionFinales',
     'django_extensions',
+    'gestionInstituto',
+    
 ]
 
 MIDDLEWARE = [

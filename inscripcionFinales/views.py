@@ -1,4 +1,3 @@
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.views import LoginView, LogoutView    
 from .models import *
@@ -22,6 +21,8 @@ from django.views.decorators.csrf import csrf_protect
 from math import *
 from json import *
 from django.template import loader
+
+
 #from weasyprint import HTML, CSS
 
 # Create your views here.
@@ -79,7 +80,41 @@ class editUser(UpdateView):
     model = Usuario
     form_class = profile_students_form
     template_name = 'registration/edit_profile.html'
-    success_url = '/'
+    success_url = '/user_list/'  # Cambiar a lista de usuarios
+    
+    def form_valid(self, form):
+        # Validaciones adicionales antes de guardar
+        dni = form.cleaned_data.get('dni')
+        telefono_1 = form.cleaned_data.get('telefono_1')
+        telefono_2 = form.cleaned_data.get('telefono_2')
+        
+        # Validar DNI único (excluyendo el usuario actual)
+        if dni and Usuario.objects.filter(dni=dni).exclude(id=self.object.id).exists():
+            messages.error(self.request, 'Ya existe un usuario con ese DNI.')
+            return self.form_invalid(form)
+        
+        # Validar teléfonos si están presentes
+        if telefono_1 and (len(str(telefono_1)) < 6 or len(str(telefono_1)) > 15):
+            messages.error(self.request, 'El teléfono debe tener entre 6 y 15 dígitos.')
+            return self.form_invalid(form)
+            
+        if telefono_2 and (len(str(telefono_2)) < 6 or len(str(telefono_2)) > 15):
+            messages.error(self.request, 'El celular debe tener entre 6 y 15 dígitos.')
+            return self.form_invalid(form)
+        
+        # Si todo está bien, guardar y mostrar mensaje de éxito
+        response = super().form_valid(form)
+        messages.success(self.request, 'El usuario se ha editado correctamente.')
+        return response
+    
+    def form_invalid(self, form):
+        # Si hay errores en el formulario
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(self.request, f'{form.fields[field].label}: {error}')
+        return super().form_invalid(form)
+    
+
     
 class editMesa(UpdateView):
     model = MesaFinal

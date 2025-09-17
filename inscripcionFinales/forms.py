@@ -7,6 +7,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.core.validators import RegexValidator
 #from django.forms import ModelForm, CustomPasswordChangeForm
 from .models import *
+from django.utils.crypto import get_random_string
 
 validador= RegexValidator(r'^[0-9]*$','Solo se permiten números')
 class institutoForms(forms.ModelForm):
@@ -74,9 +75,53 @@ class registri_user_form(UserCreationForm):
     password1 = None
     password2 = None
     
+    # Campos básicos
+    username = forms.CharField(max_length=150, required=False, label="Nombre de Usuario")
+    nombre_completo = forms.CharField(max_length=100, required=True, label="Nombre Completo")
+    fecha_nac = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        label="Fecha de nacimiento"
+    )
+    
+    # Datos de ubicación
+    direccion = forms.CharField(max_length=200, required=False, label="Dirección")
+    localidad = forms.CharField(max_length=100, required=False, label="Localidad")
+    ciudad = forms.CharField(max_length=100, required=False, label="Ciudad")
+    nacionalidad = forms.CharField(max_length=100, required=False, initial='Argentina', label="Nacionalidad")
+    
+    # Teléfonos
+    telefono_1 = forms.CharField(
+        max_length=15, 
+        validators=[validador], 
+        required=False,
+        label="Teléfono"
+    )
+    telefono_2 = forms.CharField(
+        max_length=15, 
+        validators=[validador], 
+        required=False,
+        label="Celular"
+    )
+    
+    # Estado civil y sexo usando los choices correctos
+    estado_civil = forms.ChoiceField(
+        choices=ESTADO_CIVIL_CHOICES,
+        required=False,
+        label="Estado civil"
+    )
+    
+    sexo = forms.ChoiceField(
+        choices=SEXO_CHOICES,
+        required=False,
+        label="Sexo"
+    )
+    
+    # Campos específicos por rol
     carrera = forms.ModelChoiceField(
         queryset=Carrera.objects.all(),
-        empty_label="Seleccione una carrera"
+        empty_label="Seleccione una carrera",
+        required=False
     )
     especialidad = forms.CharField(max_length=100, required=False)
     cargo = forms.CharField(max_length=100, required=False)
@@ -84,13 +129,17 @@ class registri_user_form(UserCreationForm):
 
     class Meta:
         model = Usuario
-        fields = ['email', 'nombre_completo', 'dni', 'rol', 'carrera', 'especialidad', 'cargo', 'area']
+        fields = [
+            'username', 'email', 'nombre_completo', 'dni', 'fecha_nac',
+            'direccion', 'localidad', 'ciudad', 'nacionalidad',
+            'telefono_1', 'telefono_2', 'estado_civil', 'sexo',
+            'rol', 'carrera', 'especialidad', 'cargo', 'area'
+        ]
 
     def clean(self):
-        password = Usuario.objects.make_random_password(length=10,allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789')
+        password = get_random_string(length=10, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789')
         self.cleaned_data['password1'] = password
         self.cleaned_data['password2'] = password
-
         return super().clean()
 
     def save(self, commit=True):
@@ -98,43 +147,97 @@ class registri_user_form(UserCreationForm):
         rol = self.cleaned_data.get('rol', '').lower()
         print(usuario.dni)
         usuario.set_password(str(usuario.dni))
-        if rol == 'Estudiante':
+        
+        # Asignar todos los campos adicionales
+        usuario.username = self.cleaned_data.get('username', '')
+        usuario.fecha_nac = self.cleaned_data.get('fecha_nac')
+        usuario.direccion = self.cleaned_data.get('direccion', '')
+        usuario.localidad = self.cleaned_data.get('localidad', '')
+        usuario.ciudad = self.cleaned_data.get('ciudad', '')
+        usuario.nacionalidad = self.cleaned_data.get('nacionalidad', '')
+        usuario.telefono_1 = self.cleaned_data.get('telefono_1', '')
+        usuario.telefono_2 = self.cleaned_data.get('telefono_2', '')
+        usuario.estado_civil = self.cleaned_data.get('estado_civil', '')
+        usuario.sexo = self.cleaned_data.get('sexo', '')
+        
+        if rol == 'estudiante':
             estudiante = Estudiante.objects.create(
+                username=usuario.username,
                 email=usuario.email,
                 nombre_completo=usuario.nombre_completo,
                 dni=usuario.dni,
+                fecha_nac=usuario.fecha_nac,
+                direccion=usuario.direccion,
+                localidad=usuario.localidad,
+                ciudad=usuario.ciudad,
+                nacionalidad=usuario.nacionalidad,
+                telefono_1=usuario.telefono_1,
+                telefono_2=usuario.telefono_2,
+                estado_civil=usuario.estado_civil,
+                sexo=usuario.sexo,
                 rol=usuario.rol,
+                matricula=get_random_string(length=8, allowed_chars='0123456789')  # Generar matrícula automática
             )
-            estudiante.carrera.set([self.cleaned_data['carrera']])
+            if self.cleaned_data.get('carrera'):
+                estudiante.carrera.set([self.cleaned_data['carrera']])
             usuario = estudiante
-        elif rol == 'Profesor':
+        elif rol == 'profesor':
             usuario = Profesor.objects.create(
+                username=usuario.username,
                 email=usuario.email,
                 nombre_completo=usuario.nombre_completo,
                 dni=usuario.dni,
+                fecha_nac=usuario.fecha_nac,
+                direccion=usuario.direccion,
+                localidad=usuario.localidad,
+                ciudad=usuario.ciudad,
+                nacionalidad=usuario.nacionalidad,
+                telefono_1=usuario.telefono_1,
+                telefono_2=usuario.telefono_2,
+                estado_civil=usuario.estado_civil,
+                sexo=usuario.sexo,
                 rol=usuario.rol,
-                especialidad=self.cleaned_data['especialidad']
+                especialidad=self.cleaned_data.get('especialidad', '')
             )
-        elif rol == 'Directivo':
+        elif rol == 'directivo':
             usuario = Directivo.objects.create(
+                username=usuario.username,
                 email=usuario.email,
                 nombre_completo=usuario.nombre_completo,
                 dni=usuario.dni,
+                fecha_nac=usuario.fecha_nac,
+                direccion=usuario.direccion,
+                localidad=usuario.localidad,
+                ciudad=usuario.ciudad,
+                nacionalidad=usuario.nacionalidad,
+                telefono_1=usuario.telefono_1,
+                telefono_2=usuario.telefono_2,
+                estado_civil=usuario.estado_civil,
+                sexo=usuario.sexo,
                 rol=usuario.rol,
-                cargo=self.cleaned_data['cargo']
+                cargo=self.cleaned_data.get('cargo', '')
             )
-        elif rol == 'Preceptor':
+        elif rol == 'preceptor':
             usuario = Preceptor.objects.create(
+                username=usuario.username,
                 email=usuario.email,
                 nombre_completo=usuario.nombre_completo,
                 dni=usuario.dni,
+                fecha_nac=usuario.fecha_nac,
+                direccion=usuario.direccion,
+                localidad=usuario.localidad,
+                ciudad=usuario.ciudad,
+                nacionalidad=usuario.nacionalidad,
+                telefono_1=usuario.telefono_1,
+                telefono_2=usuario.telefono_2,
+                estado_civil=usuario.estado_civil,
+                sexo=usuario.sexo,
                 rol=usuario.rol,
-                area=self.cleaned_data['area']
+                area=self.cleaned_data.get('area', '')
             )
                
         usuario.save()
         return usuario
-
 
 
 class profile_students_form(forms.ModelForm):   
