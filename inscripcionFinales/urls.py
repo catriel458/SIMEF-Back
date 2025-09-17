@@ -25,14 +25,16 @@ urlpatterns = [
     path("user_list/",login_required(listUser.as_view(template_name='registration/list_user.html')),name='list_user'),
     path("edit_user/<int:pk>",login_required(editUser.as_view(template_name = 'registration/edit_profile.html')), name='edit_profile'),
     path("delete_user/<int:pk>",login_required(deleteUser.as_view(template_name='registration/delete_user.html')),name='delete_user'),
+    path('eliminar_usuarios_seleccionados/', eliminar_usuarios, name='eliminar_usuarios_seleccionados'),
+    path('eliminar_usuarios_seleccionados/', eliminar_usuarios, name='eliminar_usuarios_seleccionados'),
     path("show_user/<int:pk>",login_required(editUser.as_view(template_name = 'registration/show_user.html')), name='show_user'),
     path('password_reset/',auth_views.PasswordResetView.as_view(template_name='registration/password_reset_form.html',email_template_name='registration/password_reset_email.html',success_url='/password_reset/done/'),name='password_reset'),
     path('password_reset/done/', CustomPasswordResetDoneView.as_view(), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', CustomPasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', CustomPasswordResetCompleteView.as_view(), name='password_reset_complete'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='registration/password_reset_confirm.html'), name='password_reset_confirm'),
-    path('eliminar_usuarios_seleccionados/', eliminar_usuarios, name='eliminar_usuarios_seleccionados'),
-    path('reporte/<int:usuario_id>', reporte_estudiante, name='reporte_estudiante'),
+    path('reporte/<int:usuario_id>', reporte_estudiante_descarga, name='reporte_estudiante'),
+
     #Alta e Inscripcion materias
     
     path('altaMateria/', login_required(alta_materia), name='altaMateria'),
@@ -61,6 +63,8 @@ urlpatterns = [
     path('abrir_mesas_seleccionadas/', abrir_mesas_seleccionadas, name='abrir_mesas_seleccionadas'),
     path('cerrar_mesas_seleccionadas/', cerrar_mesas_seleccionadas, name='cerrar_mesas_seleccionadas'),
     path('estudiantes/<int:usuario_id>/reporte_usuario_materias/', reporte_usuario_materias, name='reporte_usuario_materias'),
+    path('reporte_html/<int:usuario_id>', reporte_estudiante_html, name='reporte_estudiante_html'),
+
 
     #Alta e Inscripcion mesa de final Administrativo
     path('mesas_finales/', MesasFinalesListView.as_view(), name='mesas_finales_list'),

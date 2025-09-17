@@ -21,7 +21,10 @@ from django.views.decorators.csrf import csrf_protect
 from math import *
 from json import *
 from django.template import loader
-
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
+from django.http import HttpResponse
+from io import BytesIO
 
 #from weasyprint import HTML, CSS
 
@@ -1021,28 +1024,33 @@ def cerrar_inscripcion_materia(request,carrera,anio):
     else:
         return render(request,"403_forbidden.html")
     
-def eliminar_usuarios(request, usuario_id=None):
+def eliminar_usuarios(request):
     # Restricciones de acceso
-    if not (request.user.is_staff or request.user.is_superuser or request.user.admin):
-        return render(request, 'registration/error403.html', {'error_message': "No tienes permiso para realizar esta acción."})
+    if not (request.user.is_staff or request.user.is_superuser):
+        return render(request, '403_forbidden.html', {'error_message': "No tienes permiso para realizar esta acción."})
+    
     if request.method == 'POST':
-        if usuario_id:
-            # Eliminar un solo usuario
-            if str(request.user.id) == usuario_id:
-                return render(request, 'registration/error403.html', {'error_message': "No puedes eliminar tu propio usuario."})
-            
-            usuario = get_object_or_404(Usuario, pk=usuario_id)
-            usuario.delete()
-            return redirect('list_user', cantidad_eliminadas=1)
-        else:
-            # Eliminar múltiples usuarios
-            usuarios_ids = request.POST.getlist('usuarios_ids')
-            if str(request.user.id) in usuarios_ids:
-                return render(request, '403_forbidden.html', {'error_message': "No puedes eliminar tu propio usuario."})
-            cantidad_eliminadas = len(usuarios_ids)
-            if cantidad_eliminadas > 0:
-                Usuario.objects.filter(id__in=usuarios_ids).delete()
+        # Eliminar múltiples usuarios seleccionados
+        usuarios_ids = request.POST.getlist('usuarios_ids')
+        
+        # Verificar que no se elimine a sí mismo
+        if str(request.user.id) in usuarios_ids:
+            messages.error(request, "No puedes eliminar tu propio usuario.")
             return redirect('list_user')
+        
+        # Verificar que se hayan seleccionado usuarios
+        if len(usuarios_ids) > 0:
+            try:
+                # Eliminar los usuarios seleccionados
+                usuarios_eliminados = Usuario.objects.filter(id__in=usuarios_ids)
+                cantidad_eliminadas = usuarios_eliminados.count()
+                usuarios_eliminados.delete()
+                
+                messages.success(request, f'Se eliminaron {cantidad_eliminadas} usuarios correctamente.')
+            except Exception as e:
+                messages.error(request, f'Error al eliminar usuarios: {str(e)}')
+        else:
+            messages.warning(request, 'No se seleccionaron usuarios para eliminar.')
     
     return redirect('list_user')
     
@@ -1161,23 +1169,52 @@ def reporte_usuario_materias(request, usuario_id):
 
 
 
-def reporte_estudiante(request, usuario_id):
-    materias_aprobadas = usuarios_materia.objects.filter(usuario_id=usuario_id, aprobada=True).count()
-    print(materias_aprobadas)
-    hoy = timezone.now().date()
+def reporte_estudiante_descarga(request, usuario_id):
+    from xhtml2pdf import pisa
+    from django.template.loader import render_to_string
+    from django.http import HttpResponse
+    from io import BytesIO
+    import os
+    from django.conf import settings
+    
+    # Obtener el usuario
     usuario = get_object_or_404(Usuario, id=usuario_id)
-    carrera = get_object_or_404(Carrera, nombre_carrera="Tecnicatura Superior en Analisis de Sistemas")
+    hoy = timezone.now().date()
+    
+    # Obtener la carrera del usuario (primera carrera si tiene múltiples)
+    carrera = usuario.carrera.first()
+    if not carrera:
+        # Si no tiene carrera, usar la primera carrera disponible en el sistema
+        carrera = Carrera.objects.first()
+        if not carrera:
+            return HttpResponse("No hay carreras registradas en el sistema", status=404)
+    
+    # Contar materias aprobadas del usuario
+    materias_aprobadas = usuarios_materia.objects.filter(
+        usuario_id=usuario_id, 
+        aprobada=True
+    ).count()
+    
+    # Obtener todas las materias de la carrera del usuario
+    materias_de_carrera = Materia.objects.filter(carrera=carrera)
+    
     # Prefetch para optimizar las consultas
     usuarios_materia_prefetch = Prefetch(
-        'usuarios_materia_set',  # Cambiado de 'usuarios_materia' a 'usuarios_materia_set'
+        'usuarios_materia_set',
         queryset=usuarios_materia.objects.filter(usuario_id=usuario_id),
         to_attr='usuario_materia'
     )
-    materias_primero = Materia.objects.filter(anio=1).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
-    materias_segundo = Materia.objects.filter(anio=2).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
-    materias_tercero = Materia.objects.filter(anio=3).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
-    cant_materias = Materia.objects.count()
-    # Procesamiento de las materias y sus notas
+    
+    # Obtener materias por año de la carrera específica del usuario
+    materias_primero = materias_de_carrera.filter(anio=1).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
+    materias_segundo = materias_de_carrera.filter(anio=2).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
+    materias_tercero = materias_de_carrera.filter(anio=3).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
+    materias_cuarto = materias_de_carrera.filter(anio=4).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
+    
+    # Contar total de materias de la carrera del usuario
+    cant_materias = materias_de_carrera.count()
+    
+    # Función para procesar materias y sus notas
     def procesar_materias(materias):
         return [
             {
@@ -1187,52 +1224,227 @@ def reporte_estudiante(request, usuario_id):
             }
             for materia in materias
         ]
+    
+    # Procesar materias por año
     materias_primero_con_notas = procesar_materias(materias_primero)
     materias_segundo_con_notas = procesar_materias(materias_segundo)
     materias_tercero_con_notas = procesar_materias(materias_tercero)
+    materias_cuarto_con_notas = procesar_materias(materias_cuarto)
+    
+    # Calcular porcentaje de avance
     if cant_materias > 0:
-        porcentaje = round((materias_aprobadas / cant_materias)*100, 2)
+        porcentaje = round((materias_aprobadas / cant_materias) * 100, 2)
     else:
         porcentaje = 0
+    
+    # Obtener datos del instituto si existe
+    instituto = carrera.instituto if carrera.instituto else None
+    
     context = {
         'usuario': usuario,
+        'carrera': carrera,
+        'instituto': instituto,
         'porcentaje_aprobado': porcentaje,
+        'materias_aprobadas': materias_aprobadas,
+        'total_materias': cant_materias,
         'materias_primero': materias_primero_con_notas,
         'materias_segundo': materias_segundo_con_notas,
         'materias_tercero': materias_tercero_con_notas,
-        'carrera': carrera,
-        'fecha':hoy
+        'materias_cuarto': materias_cuarto_con_notas,
+        'fecha': hoy
     }
-    return render(request, 'registration/reporte_estudiante.html', context)
+    
+    # Renderizar template a HTML
+    html_string = render_to_string('registration/reporte_estudiante_pdf.html', context, request=request)
+    
+    # Crear archivo PDF
+    result = BytesIO()
+    
+    # Función para resolver URLs de archivos estáticos
+    def link_callback(uri, rel):
+        """
+        Convert HTML URIs to absolute system paths so xhtml2pdf can access those resources
+        """
+        try:
+            if uri.startswith(settings.MEDIA_URL):
+                path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ""))
+            elif uri.startswith(settings.STATIC_URL):
+                path = os.path.join(settings.STATIC_ROOT, uri.replace(settings.STATIC_URL, ""))
+                if not os.path.exists(path):
+                    path = os.path.join(settings.BASE_DIR, 'static', uri.replace(settings.STATIC_URL, ""))
+            else:
+                path = None
+            
+            # Verificar que el archivo existe
+            if path and os.path.isfile(path):
+                return path
+        except:
+            pass
+        return None
+    
+    # Generar PDF
+    try:
+        pdf_status = pisa.pisaDocument(
+            BytesIO(html_string.encode("UTF-8")), 
+            result, 
+            link_callback=link_callback,
+            encoding='UTF-8'
+        )
+        
+        # Verificar si se generó correctamente
+        if not pdf_status.err:
+            # Crear nombre del archivo de manera segura
+            nombre_usuario = usuario.nombre_completo or usuario.email or f"usuario_{usuario.id}"
+            nombre_limpio = nombre_usuario.replace(' ', '_').replace(',', '').replace('.', '_').replace('@', '_')
+            filename = f"constancia_{nombre_limpio}.pdf"
+            
+            # Obtener el contenido del PDF
+            pdf_content = result.getvalue()
+            
+            # Crear respuesta HTTP forzando descarga directa
+            response = HttpResponse(pdf_content, content_type='application/force-download')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response['Content-Length'] = len(pdf_content)
+            response['Content-Transfer-Encoding'] = 'binary'
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
+            response['Accept-Ranges'] = 'bytes'
+            response['X-Content-Type-Options'] = 'nosniff'
+            response['X-Download-Options'] = 'noopen'
+            response['Content-Description'] = 'File Transfer'
+            
+            # Cerrar el buffer
+            result.close()
+            
+            return response
+        else:
+            # Si hay error en la generación del PDF
+            result.close()
+            error_msg = f"Error al generar el PDF: {pdf_status.err}"
+            return HttpResponse(error_msg, status=500, content_type='text/plain')
+            
+    except Exception as e:
+        # Manejo de errores generales
+        result.close()
+        error_msg = f"Error inesperado al generar el PDF: {str(e)}"
+        return HttpResponse(error_msg, status=500, content_type='text/plain')
+
+
+# También necesitas agregar esta función auxiliar si no existe:
+def numero_a_texto(numero):
+    """Convierte un número a texto en español"""
+    if numero == "-" or numero is None:
+        return "-"
+    
+    try:
+        num = float(numero)
+        numeros = {
+            0: "cero", 1: "uno", 2: "dos", 3: "tres", 4: "cuatro",
+            5: "cinco", 6: "seis", 7: "siete", 8: "ocho", 9: "nueve", 10: "diez"
+        }
+        return numeros.get(int(num), str(num))
+    except:
+        return str(numero)
+    
+
+def reporte_estudiante_html(request, usuario_id):
+    # Obtener el usuario
+    usuario = get_object_or_404(Usuario, id=usuario_id)
+    hoy = timezone.now().date()
+    
+    # Obtener la carrera del usuario (primera carrera si tiene múltiples)
+    carrera = usuario.carrera.first()
+    if not carrera:
+        carrera = Carrera.objects.first()
+        if not carrera:
+            return HttpResponse("No hay carreras registradas en el sistema", status=404)
+    
+    # Contar materias aprobadas del usuario
+    materias_aprobadas = usuarios_materia.objects.filter(
+        usuario_id=usuario_id, 
+        aprobada=True
+    ).count()
+    
+    # Obtener todas las materias de la carrera del usuario
+    materias_de_carrera = Materia.objects.filter(carrera=carrera)
+    
+    # Prefetch para optimizar las consultas
+    usuarios_materia_prefetch = Prefetch(
+        'usuarios_materia_set',
+        queryset=usuarios_materia.objects.filter(usuario_id=usuario_id),
+        to_attr='usuario_materia'
+    )
+    
+    # Obtener materias por año
+    materias_primero = materias_de_carrera.filter(anio=1).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
+    materias_segundo = materias_de_carrera.filter(anio=2).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
+    materias_tercero = materias_de_carrera.filter(anio=3).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
+    materias_cuarto = materias_de_carrera.filter(anio=4).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
+    
+    # Contar total de materias
+    cant_materias = materias_de_carrera.count()
+    
+    # Función para procesar materias y sus notas
+    def procesar_materias(materias):
+        return [
+            {
+                'materia': materia,
+                'nota_final': next((um.nota_final for um in materia.usuario_materia if um.usuario_id == usuario_id), "-"),
+                'nota_texto': numero_a_texto(next((um.nota_final for um in materia.usuario_materia if um.usuario_id == usuario_id), "-"))
+            }
+            for materia in materias
+        ]
+    
+    # Procesar materias por año
+    materias_primero_con_notas = procesar_materias(materias_primero)
+    materias_segundo_con_notas = procesar_materias(materias_segundo)
+    materias_tercero_con_notas = procesar_materias(materias_tercero)
+    materias_cuarto_con_notas = procesar_materias(materias_cuarto)
+    
+    # Calcular porcentaje de avance
+    if cant_materias > 0:
+        porcentaje = round((materias_aprobadas / cant_materias) * 100, 2)
+    else:
+        porcentaje = 0
+    
+    # Obtener datos del instituto si existe
+    instituto = carrera.instituto if carrera.instituto else None
+    
+    context = {
+        'usuario': usuario,
+        'carrera': carrera,
+        'instituto': instituto,
+        'porcentaje_aprobado': porcentaje,
+        'materias_aprobadas': materias_aprobadas,
+        'total_materias': cant_materias,
+        'materias_primero': materias_primero_con_notas,
+        'materias_segundo': materias_segundo_con_notas,
+        'materias_tercero': materias_tercero_con_notas,
+        'materias_cuarto': materias_cuarto_con_notas,
+        'fecha': hoy
+    }
+    
+    return render(request, 'registration/reporte_estudiante_html.html', context)
 
 def numero_a_texto(numero):
-    if numero != '-' and numero is not None:
-        unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve']
-        decenas = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve']
-        decenas_completas = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa']
-
-        def convertir_entero(n):
-            if n < 10:
-                return unidades[n].capitalize()
-            elif n < 20:
-                return decenas[n-10].capitalize()
-            elif n < 100:
-                if n % 10 == 0:
-                    return decenas_completas[n // 10].capitalize()
-                else:
-                    return f"{decenas_completas[n // 10]} y {unidades[n % 10]}".capitalize()
-            else:
-                return "Cien"
-
-        parte_entera = int(numero)
-        parte_decimal = int(round((numero - parte_entera) * 100))
-
-        texto_entero = convertir_entero(parte_entera)
-
-        if parte_decimal == 0:
-            return texto_entero
-        else:
-            texto_decimal = convertir_entero(parte_decimal)
-            return f"{texto_entero} con {texto_decimal.lower()}"
-    else:
+    """Convierte un número a texto en español para uso académico"""
+    if numero == "-" or numero is None:
         return "-"
+    
+    try:
+        num = float(numero)
+        if num == int(num):  # Si es un entero
+            num = int(num)
+        
+        numeros = {
+            0: "cero", 1: "uno", 2: "dos", 3: "tres", 4: "cuatro",
+            5: "cinco", 6: "seis", 7: "siete", 8: "ocho", 9: "nueve", 10: "diez"
+        }
+        
+        if num in numeros:
+            return numeros[num]
+        else:
+            return str(numero)
+    except:
+        return str(numero)
