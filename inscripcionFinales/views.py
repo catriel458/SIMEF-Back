@@ -28,10 +28,7 @@ from io import BytesIO
 
 #from weasyprint import HTML, CSS
 
-# Create your views here.
 
-class ArchivoForm(forms.Form):
-    archivo_csv = forms.FileField(label = 'Seleccione un archivo csv', required=False)
 
 class HomePageView(TemplateView):
     template_name = 'index.html'
@@ -545,30 +542,319 @@ class EstudianteDeleteView(DeleteView):
 def cargar_usuarios(request):
     if request.method == 'POST':
         formulario = ArchivoForm(request.POST, request.FILES)
+        
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'Por favor seleccione un archivo CSV.')
+            formulario = ArchivoForm()
+            return render(request, 'registration/cargar_usuarios.html', {'formulario': formulario})
+        
         if formulario.is_valid():
             archivo_csv = request.FILES['csv_file']
-            decoded_file = archivo_csv.read().decode('latin1').splitlines()
-            archivo_csv = csv.DictReader(decoded_file,delimiter=';')
-            flagDuplicado=0
-            for fila in archivo_csv:
-                try:
-                    email = fila['Correo electrónico']
-                    nombre_completo = fila['Nombre estudiante']
-                    dni = fila['Documento estudiante']
-                    username = dni
-                    password = dni
-                    matricula = dni
-                    usuario = Estudiante.objects.create_user(email=email,nombre_completo=nombre_completo,rol='Estudiante', dni=dni,username=username, password=password, matricula=matricula)                
-                except:
-                    pass
-                    flagDuplicado=1
-            if flagDuplicado==0:
-                return render(request,'registration/exito_carga_masiva.html')
-            else:
-                return render(request,'registration/warning_carga_masiva.html')
+            
+            try:
+                # Intentar diferentes encodings
+                contenido = None
+                for encoding in ['utf-8', 'latin1', 'iso-8859-1', 'cp1252']:
+                    try:
+                        archivo_csv.seek(0)
+                        contenido = archivo_csv.read().decode(encoding)
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if contenido is None:
+                    messages.error(request, 'No se pudo leer el archivo. Verifique la codificación.')
+                    return render(request, 'registration/cargar_usuarios.html', {'formulario': formulario})
+                
+                # Procesar CSV
+                lineas = contenido.splitlines()
+                reader = csv.DictReader(lineas, delimiter=',')
+                
+                usuarios_creados = 0
+                usuarios_duplicados = 0
+                errores = []
+                
+                # Validar encabezados requeridos
+                campos_requeridos = ['Correo electrónico', 'Nombre estudiante', 'Documento estudiante']
+                if not all(campo in reader.fieldnames for campo in campos_requeridos):
+                    messages.error(request, f'El archivo debe contener las columnas: {", ".join(campos_requeridos)}')
+                    return render(request, 'registration/cargar_usuarios.html', {'formulario': formulario})
+                
+                for numero_fila, fila in enumerate(reader, start=2):
+                    try:
+                        # Campos obligatorios
+                        email = fila.get('Correo electrónico', '').strip()
+                        nombre_completo = fila.get('Nombre estudiante', '').strip()
+                        dni_str = fila.get('Documento estudiante', '').strip()
+                        
+                        # Validaciones básicas
+                        if not email or not nombre_completo or not dni_str:
+                            errores.append(f'Fila {numero_fila}: Campos obligatorios faltantes (email, nombre o DNI)')
+                            continue
+                        
+                        # Validar email
+                        from django.core.validators import validate_email
+                        try:
+                            validate_email(email)
+                        except:
+                            errores.append(f'Fila {numero_fila}: Email inválido ({email})')
+                            continue
+                        
+                        # Validar y convertir DNI
+                        try:
+                            dni = int(dni_str)
+                            if dni <= 0:
+                                raise ValueError()
+                        except ValueError:
+                            errores.append(f'Fila {numero_fila}: DNI inválido ({dni_str})')
+                            continue
+                        
+                        # Verificar duplicados
+                        if Usuario.objects.filter(Q(email=email) | Q(dni=dni)).exists():
+                            usuarios_duplicados += 1
+                            continue
+                        
+                        # Campos opcionales con validaciones
+                        username = fila.get('Username', '').strip() or str(dni)
+                        
+                        # Fecha de nacimiento
+                        fecha_nac = None
+                        if fila.get('Fecha nacimiento', '').strip():
+                            try:
+                                from datetime import datetime
+                                fecha_str = fila['Fecha nacimiento'].strip()
+                                formatos = ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y']
+                                for formato in formatos:
+                                    try:
+                                        fecha_nac = datetime.strptime(fecha_str, formato).date()
+                                        break
+                                    except ValueError:
+                                        continue
+                            except:
+                                errores.append(f'Fila {numero_fila}: Fecha inválida ({fecha_str})')
+                                continue
+                        
+                        # Teléfonos
+                        telefono_1 = None
+                        telefono_2 = None
+                        
+                        if fila.get('Telefono 1', '').strip():
+                            try:
+                                telefono_1 = int(fila['Telefono 1'].strip())
+                                if len(str(telefono_1)) < 6 or len(str(telefono_1)) > 15:
+                                    errores.append(f'Fila {numero_fila}: Teléfono 1 debe tener entre 6 y 15 dígitos')
+                                    continue
+                            except ValueError:
+                                errores.append(f'Fila {numero_fila}: Teléfono 1 inválido')
+                                continue
+                        
+                        if fila.get('Telefono 2', '').strip():
+                            try:
+                                telefono_2 = int(fila['Telefono 2'].strip())
+                                if len(str(telefono_2)) < 6 or len(str(telefono_2)) > 15:
+                                    errores.append(f'Fila {numero_fila}: Teléfono 2 debe tener entre 6 y 15 dígitos')
+                                    continue
+                            except ValueError:
+                                errores.append(f'Fila {numero_fila}: Teléfono 2 inválido')
+                                continue
+                        
+                        # Estado civil (validar que sea una opción válida)
+                        estado_civil = fila.get('Estado civil', '').strip()
+                        estados_validos = ['Soltero', 'Soltera', 'Casado', 'Casada', 'Divorciado', 'Divorciada', 'Viudo', 'Viuda']
+                        if estado_civil and estado_civil not in estados_validos:
+                            errores.append(f'Fila {numero_fila}: Estado civil inválido. Opciones: {", ".join(estados_validos)}')
+                            continue
+                        
+                        # Sexo
+                        sexo = fila.get('Sexo', '').strip().upper()
+                        if sexo and sexo not in ['M', 'F', 'MASCULINO', 'FEMENINO']:
+                            errores.append(f'Fila {numero_fila}: Sexo inválido. Usar: M, F, Masculino o Femenino')
+                            continue
+                        
+                        # Normalizar sexo
+                        if sexo in ['MASCULINO']:
+                            sexo = 'M'
+                        elif sexo in ['FEMENINO']:
+                            sexo = 'F'
+                        
+                        # Rol (por defecto Estudiante)
+                        rol = fila.get('Rol', '').strip() or 'Estudiante'
+                        roles_validos = ['Estudiante', 'Profesor', 'Directivo', 'Preceptor', 'Administrador', 'Bibliotecario']
+                        if rol not in roles_validos:
+                            errores.append(f'Fila {numero_fila}: Rol inválido. Opciones: {", ".join(roles_validos)}')
+                            continue
+                        
+                        # Buscar carrera si se especifica
+                        carrera_obj = None
+                        if fila.get('Carrera', '').strip():
+                            try:
+                                carrera_obj = Carrera.objects.get(nombre_carrera__iexact=fila['Carrera'].strip())
+                            except Carrera.DoesNotExist:
+                                errores.append(f'Fila {numero_fila}: Carrera no encontrada ({fila["Carrera"].strip()})')
+                                continue
+                        
+                        # Crear usuario según el rol
+                        password = str(dni)  # Usar DNI como contraseña inicial
+                        
+                        if rol == 'Estudiante':
+                            matricula = fila.get('Matricula', str(dni))  # Usar DNI como matrícula por defecto
+                            
+                            usuario = Estudiante.objects.create_user(
+                                email=email,
+                                nombre_completo=nombre_completo,
+                                dni=dni,
+                                username=username,
+                                password=password,
+                                matricula=matricula,
+                                fecha_nac=fecha_nac,
+                                telefono_1=telefono_1,
+                                telefono_2=telefono_2,
+                                direccion=fila.get('Direccion', '').strip() or None,
+                                localidad=fila.get('Localidad', '').strip() or None,
+                                ciudad=fila.get('Ciudad', '').strip() or None,
+                                nacionalidad=fila.get('Nacionalidad', 'Argentina').strip(),
+                                estado_civil=estado_civil or None,
+                                sexo=sexo or None,
+                                rol=rol
+                            )
+                            
+                        elif rol == 'Profesor':
+                            especialidad = fila.get('Especialidad', '').strip() or 'No especificada'
+                            
+                            usuario = Profesor.objects.create_user(
+                                email=email,
+                                nombre_completo=nombre_completo,
+                                dni=dni,
+                                username=username,
+                                password=password,
+                                fecha_nac=fecha_nac,
+                                telefono_1=telefono_1,
+                                telefono_2=telefono_2,
+                                direccion=fila.get('Direccion', '').strip() or None,
+                                localidad=fila.get('Localidad', '').strip() or None,
+                                ciudad=fila.get('Ciudad', '').strip() or None,
+                                nacionalidad=fila.get('Nacionalidad', 'Argentina').strip(),
+                                estado_civil=estado_civil or None,
+                                sexo=sexo or None,
+                                rol=rol,
+                                especialidad=especialidad
+                            )
+                            
+                        elif rol == 'Directivo':
+                            cargo = fila.get('Cargo', '').strip() or 'No especificado'
+                            
+                            usuario = Directivo.objects.create_user(
+                                email=email,
+                                nombre_completo=nombre_completo,
+                                dni=dni,
+                                username=username,
+                                password=password,
+                                fecha_nac=fecha_nac,
+                                telefono_1=telefono_1,
+                                telefono_2=telefono_2,
+                                direccion=fila.get('Direccion', '').strip() or None,
+                                localidad=fila.get('Localidad', '').strip() or None,
+                                ciudad=fila.get('Ciudad', '').strip() or None,
+                                nacionalidad=fila.get('Nacionalidad', 'Argentina').strip(),
+                                estado_civil=estado_civil or None,
+                                sexo=sexo or None,
+                                rol=rol,
+                                cargo=cargo
+                            )
+                            
+                        elif rol == 'Preceptor':
+                            area = fila.get('Area', '').strip() or 'No especificada'
+                            
+                            usuario = Preceptor.objects.create_user(
+                                email=email,
+                                nombre_completo=nombre_completo,
+                                dni=dni,
+                                username=username,
+                                password=password,
+                                fecha_nac=fecha_nac,
+                                telefono_1=telefono_1,
+                                telefono_2=telefono_2,
+                                direccion=fila.get('Direccion', '').strip() or None,
+                                localidad=fila.get('Localidad', '').strip() or None,
+                                ciudad=fila.get('Ciudad', '').strip() or None,
+                                nacionalidad=fila.get('Nacionalidad', 'Argentina').strip(),
+                                estado_civil=estado_civil or None,
+                                sexo=sexo or None,
+                                rol=rol,
+                                area=area
+                            )
+                            
+                        else:  # Usuario base para Administrador, Bibliotecario, etc.
+                            usuario = Usuario.objects.create_user(
+                                email=email,
+                                nombre_completo=nombre_completo,
+                                dni=dni,
+                                username=username,
+                                password=password,
+                                fecha_nac=fecha_nac,
+                                telefono_1=telefono_1,
+                                telefono_2=telefono_2,
+                                direccion=fila.get('Direccion', '').strip() or None,
+                                localidad=fila.get('Localidad', '').strip() or None,
+                                ciudad=fila.get('Ciudad', '').strip() or None,
+                                nacionalidad=fila.get('Nacionalidad', 'Argentina').strip(),
+                                estado_civil=estado_civil or None,
+                                sexo=sexo or None,
+                                rol=rol
+                            )
+                        
+                        # Asignar carrera si se encontró
+                        if carrera_obj:
+                            usuario.carrera.add(carrera_obj)
+                        
+                        usuarios_creados += 1
+                        
+                    except IntegrityError as e:
+                        if 'UNIQUE constraint' in str(e):
+                            usuarios_duplicados += 1
+                        else:
+                            errores.append(f'Fila {numero_fila}: Error de integridad - {str(e)}')
+                    except Exception as e:
+                        errores.append(f'Fila {numero_fila}: Error inesperado - {str(e)}')
+                
+                # Mostrar resultados
+                if usuarios_creados > 0 and not errores:
+                    messages.success(request, f'Se crearon {usuarios_creados} usuarios exitosamente')
+                    return render(request, 'registration/exito_carga_masiva.html', {
+                        'usuarios_creados': usuarios_creados,
+                        'usuarios_duplicados': usuarios_duplicados
+                    })
+                elif usuarios_creados > 0:
+                    messages.warning(request, f'Se crearon {usuarios_creados} usuarios con algunas advertencias')
+                    return render(request, 'registration/warning_carga_masiva.html', {
+                        'usuarios_creados': usuarios_creados,
+                        'usuarios_duplicados': usuarios_duplicados,
+                        'errores': errores[:20]  # Mostrar máximo 20 errores
+                    })
+                elif usuarios_duplicados > 0 and not errores:
+                    messages.warning(request, f'{usuarios_duplicados} usuarios ya existían en el sistema')
+                    return render(request, 'registration/warning_carga_masiva.html', {
+                        'usuarios_creados': 0,
+                        'usuarios_duplicados': usuarios_duplicados,
+                        'errores': []
+                    })
+                else:
+                    messages.error(request, 'No se pudieron crear usuarios')
+                    return render(request, 'registration/cargar_usuarios.html', {
+                        'formulario': formulario,
+                        'errores': errores[:20]
+                    })
+                    
+            except Exception as e:
+                messages.error(request, f'Error procesando archivo: {str(e)}')
+                return render(request, 'registration/cargar_usuarios.html', {'formulario': formulario})
+        else:
+            # Formulario no válido
+            return render(request, 'registration/cargar_usuarios.html', {'formulario': formulario})
+    
     else:
         formulario = ArchivoForm()
-
+    
     return render(request, 'registration/cargar_usuarios.html', {'formulario': formulario})
 
 def alta_masiva_materia(request):

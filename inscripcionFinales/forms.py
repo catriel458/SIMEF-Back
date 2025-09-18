@@ -393,3 +393,27 @@ class InscripcionFinalForm(forms.ModelForm):
 class FiltroInscripcionForm(forms.Form):
     estudiante = forms.CharField(required=False)
     materia = forms.CharField(required=False)
+
+# En forms.py
+class ArchivoForm(forms.Form):
+    csv_file = forms.FileField(
+        label='Seleccione un archivo csv', 
+        required=True,
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.csv'
+        })
+    )
+    
+    def clean_csv_file(self):
+        file = self.cleaned_data['csv_file']
+        
+        # Validar tamaño del archivo (5MB máximo)
+        if file.size > 5 * 1024 * 1024:
+            raise forms.ValidationError('El archivo no puede ser mayor a 5MB.')
+        
+        # Validar extensión
+        if not file.name.endswith('.csv'):
+            raise forms.ValidationError('Solo se permiten archivos CSV.')
+        
+        return file
