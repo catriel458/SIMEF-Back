@@ -26,6 +26,11 @@ from xhtml2pdf import pisa
 from django.http import HttpResponse
 from io import BytesIO
 
+from django.utils import timezone
+from datetime import datetime
+
+
+
 #from weasyprint import HTML, CSS
 
 
@@ -115,13 +120,39 @@ class editUser(UpdateView):
         return super().form_invalid(form)
     
 
+
+def editMesa(request, pk):
+    mesa = get_object_or_404(MesaFinal, pk=pk)
     
-class editMesa(UpdateView):
-    model = MesaFinal
-    form_class = MesaFinalForm
-    template_name = 'registration/edit_mesa.html'
-    success_url = '/mesas_lista/'
+    if request.method == 'POST':
+        form = MesaFinalForm(request.POST, instance=mesa)
+        
+        if form.is_valid():
+            # Obtener la fecha del formulario validado (ya procesada por Django)
+            fecha_llamado = form.cleaned_data['llamado']
+            
+            # Obtener fecha actual
+            fecha_actual = timezone.now()
+            
+            if fecha_llamado > fecha_actual:
+                # Guardar el formulario directamente (Django ya manejó la conversión de fecha)
+                form.save()
+                messages.success(request, 'Mesa final actualizada correctamente.')
+                return redirect('/mesas_lista/')
+            else:
+                messages.error(request, 'La fecha de llamado debe ser posterior a la fecha de hoy.')
+                # Agregar error al formulario para mostrarlo en el template
+                form.add_error('llamado', 'La fecha de llamado debe ser posterior a la fecha de hoy.')
+                return render(request, 'registration/edit_mesa.html', {'form': form})
+        else:
+            # Si el formulario no es válido, mostrar errores
+            messages.error(request, 'Datos del formulario inválidos.')
+            return render(request, 'registration/edit_mesa.html', {'form': form})
+    else:
+        form = MesaFinalForm(instance=mesa)
     
+    return render(request, 'registration/edit_mesa.html', {'form': form})
+
 class editInscr(UpdateView):
     model = InscripcionFinal
     form_class = InscripcionFinalForm
@@ -282,19 +313,34 @@ def altaMesa(request):
     if request.method == 'POST':
         form = MesaFinalForm(request.POST)
         fecha_llamado_str = request.POST.get('llamado')
-        fecha_llamado = datetime.strptime(fecha_llamado_str, '%Y-%m-%d').date()
-        fecha_actual = timezone.now().date()
-        print(fecha_llamado)
-        print(fecha_actual)
-        if form.is_valid():
-            if fecha_llamado > fecha_actual:
-                form.save()
-                return redirect('list_mesa')  # Redirige a la lista de mesas finales
+        
+        try:
+            # Parsear como datetime naive
+            fecha_llamado_naive = datetime.strptime(fecha_llamado_str, '%Y-%m-%dT%H:%M')
+            
+            # Convertir a timezone-aware usando la zona horaria del proyecto
+            fecha_llamado = timezone.make_aware(fecha_llamado_naive)
+            
+            # Obtener fecha actual (ya es timezone-aware)
+            fecha_actual = timezone.now()
+            
+            print(fecha_llamado)
+            print(fecha_actual)
+            
+            if form.is_valid():
+                if fecha_llamado > fecha_actual:
+                    form.save()
+                    return redirect('list_mesa')
+                else:
+                    return JsonResponse({'status': 'error', 'message': 'La fecha de llamado debe ser posterior a la fecha de hoy'})
             else:
-                return JsonResponse({'status': 'error', 'message': 'La fecha de llamado debe ser posterior a la fecha de hoy'})  
-
+                return JsonResponse({'status': 'error', 'message': 'Datos del formulario inválidos'})
+                
+        except ValueError:
+            return JsonResponse({'status': 'error', 'message': 'Formato de fecha inválido'})
     else:
         form = MesaFinalForm()
+    
     return render(request, 'finales/alta_mesa_final.html', {'form': form})
 
 def lista_finales_user(request):

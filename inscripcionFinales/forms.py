@@ -345,11 +345,32 @@ class MateriaForm(forms.ModelForm):
 class MesaFinalForm(forms.ModelForm):
     class Meta:
         model = MesaFinal
-        fields = ['materia', 'llamado','inscripcionAbierta']
+        fields = ['materia', 'llamado', 'inscripcionAbierta']
         widgets = {
-            'llamado': DateInput(attrs={'type': 'date'}),
-            'inscripcionAbierta': forms.CheckboxInput(attrs={'class':'form-check-input'})
+            'llamado': forms.DateTimeInput(
+                attrs={
+                    'type': 'datetime-local',
+                    'class': 'form-control'
+                },
+                format='%Y-%m-%dT%H:%M'
+            ),
+            'inscripcionAbierta': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'materia': forms.Select(attrs={'class': 'form-control'})
         }
+        labels = {
+            'materia': 'Materia',
+            'llamado': 'Fecha y Hora del Llamado',
+            'inscripcionAbierta': 'Inscripción Abierta'
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Configurar el campo llamado para usar datetime-local
+        self.fields['llamado'].input_formats = ['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M']
+        
+        # Hacer que la materia sea de solo lectura en edición
+        if self.instance and self.instance.pk:
+            self.fields['materia'].disabled = True
 
 class InscripcionFinalForm(forms.ModelForm):
     class Meta:

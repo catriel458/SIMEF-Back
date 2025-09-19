@@ -26,7 +26,8 @@
                 <tr>
                     <th><input class="form-check-input" type="checkbox" id="checkTodos" title="Seleccionar todo" style="transform: scale(1.5);"></th>
                     <th class="h5">Materia</th>
-                    <th class="h5">Llamado</th>
+                    <th class="h5">Fecha</th>
+                    <th class="h5">Horario</th>
                     <th class="h5">Inscripcion Abierta</th>
                     <th class="h5"></th>
                 </tr>
@@ -36,18 +37,14 @@
                 <tr class="materia text-center"hidden=True>
                     <td><input type="checkbox" name="mesa_ids" value="{{ MesaFinal.id }}"></td>
                     <td class="h6">{{MesaFinal.materia}}</td>
-                    <td class="h6" id='llamado{{ MesaFinal.id }}'>{{MesaFinal.llamado}}</td>
+                    <td class="h6">{{MesaFinal.llamado|date:"d/m/Y"}}</td>
+                    <td class="h6">{{MesaFinal.llamado|date:"H:i"}}</td>
                     <td id="inscripcion{{MesaFinal.id}}" class="h6">{{MesaFinal.inscripcionAbierta}}</td>
                     <td>
                         <a name="" id="" class="btn btn-primary" href="/edit_mesa/{{ MesaFinal.id }}" role="button"><img src="/static/imagenes/edit.png" height="20px" width="20px"></img></a>
                         <a name="" id="" class="btn btn-primary" href="/acta_volante/{{ MesaFinal.id }}" role="button"><img src="/static/imagenes/imprimir.png" height="20px" width="20px"></img></a>
                     </td>
                 </tr>
-                <script>
-                    var elemId = 'llamado{{MesaFinal.id}}';
-                    var elem = document.getElementById(elemId);
-                    elem.innerHTML=elem.innerHTML.substring(0, elem.innerHTML.length - 10);  
-                </script>
                             <!-- Modal de confirmación-->
                             <div class="modal fade" id="confirmarModal" tabindex="-1" aria-labelledby="modalTitulo" aria-hidden="true">
                                 <div class="modal-dialog">

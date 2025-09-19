@@ -76,7 +76,7 @@ urlpatterns = [
     path('TESTINGlistamateriasfinal/',listarMateriasFinal,name='listarMesas'),
     path('eliminar_inscripcion_final/<int:id>/', login_required(eliminar_inscripcion_final), name='eliminar_inscripcion_final'),
     path('altaMesa/',altaMesa, name='altaMesa'),
-    path("edit_mesa/<int:pk>",login_required(editMesa.as_view(template_name = 'registration/edit_mesa.html')), name='edit_mesa'),
+    path("edit_mesa/<int:pk>", login_required(editMesa), name='edit_mesa'),
     path('listaFinalesEst/', login_required(lista_finales_inscriptos_user), name='lista_finales_inscriptos_user'),
     path('listaFinalesAdm/', login_required(lista_finales_inscriptos_adm), name='lista_finales_inscriptos_adm'),
     path('inscripcionMesa/',inscripcionMesa,name='inscripcionMesa'), 
