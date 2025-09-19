@@ -42,6 +42,7 @@
                         <th class="h5">Email</th>
                         <th class="h5">Nombre completo</th>
                         <th class="h5">DNI</th>
+                        <th class="h5">Rol</th>
                         <th class="h5">Acciones</th>
                     </tr>
                 </thead>
@@ -53,10 +54,19 @@
                         <td class="h6">{{usuarios.email}}</td>
                         <td class="h6">{{usuarios.nombre_completo}}</td>
                         <td class="h6">{{usuarios.dni}}</td>
+                        <td class="h6">{{usuarios.get_rol_display}}</td>
                         <td>
                           <a title= "Ver" class="btn btn-primary" href="/show_user/{{ usuarios.id }}" role="button"><img src="/static/imagenes/view.png" height="20px" width="20px"></img></a>
                           <a title= "Editar" class="btn btn-primary" href="/edit_user/{{ usuarios.id }}" role="button"><img src="/static/imagenes/edit.png" height="20px" width="20px"></img></a> 
-                          <a title="Ver Reporte" class="btn btn-primary" href="/reporte_html/{{ usuarios.id }}" role="button"><img src="/static/imagenes/imprimir.png" height="20px" width="20px"></img></a>                           
+                          
+                          <!-- CONDICIÓN PARA MOSTRAR REPORTE SOLO A ESTUDIANTES -->
+                          {% if usuarios.rol == 'Estudiante' %}
+                            <a title="Ver Reporte" class="btn btn-primary" href="/reporte_html/{{ usuarios.id }}" role="button"><img src="/static/imagenes/imprimir.png" height="20px" width="20px"></img></a>
+                          {% else %}
+                            <a title="Reportes solo disponibles para estudiantes" class="btn btn-secondary" onclick="mostrarAlertaReporte('{{ usuarios.get_rol_display }}')" style="cursor: pointer;">
+                              <img src="/static/imagenes/imprimir.png" height="20px" width="20px" style="opacity: 0.5;"></img>
+                            </a>
+                          {% endif %}
                         </td>
 
                          <!-- Modal de confirmación -->
@@ -88,6 +98,26 @@
                               </div>
                               <div class="modal-footer">
                                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal"> Cerrar</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Modal de advertencia para reportes -->
+                        <div class="modal fade" id="modalReporteNoPermitido" tabindex="-1" aria-labelledby="modalReporteNoPermitidoLabel" aria-hidden="true">
+                          <div class="modal-dialog">
+                            <div class="modal-content">
+                              <div class="modal-header">
+                                <h5 class="modal-title">Reporte no disponible</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                              </div>
+                              <div class="modal-body text-center">
+                                <i class="fas fa-exclamation-triangle text-warning mb-3" style="font-size: 2rem;"></i>
+                                <h6>Los reportes de constancia académica solo están disponibles para usuarios con rol de <strong>Estudiante</strong>.</h6>
+                                <p class="mt-2 text-muted">Este usuario tiene el rol: <strong id="rolUsuarioModal"></strong></p>
+                              </div>
+                              <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendido</button>
                               </div>
                             </div>
                           </div>
@@ -280,6 +310,11 @@ function descargarPDF(usuarioId) {
             // Fallback: abrir en nueva ventana
             window.open(`/reporte/${usuarioId}`, '_blank');
         });
+}
+
+function mostrarAlertaReporte(rolUsuario) {
+    document.getElementById('rolUsuarioModal').textContent = rolUsuario;
+    $('#modalReporteNoPermitido').modal('show');
 }
 </script>  
 {% else %}

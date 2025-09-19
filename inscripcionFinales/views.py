@@ -1465,6 +1465,11 @@ def reporte_estudiante_descarga(request, usuario_id):
     
     # Obtener el usuario
     usuario = get_object_or_404(Usuario, id=usuario_id)
+    
+    # NUEVA VALIDACIÓN: Verificar que el usuario sea estudiante
+    if usuario.rol != 'Estudiante':
+        messages.error(request, 'Los reportes solo están disponibles para estudiantes.')
+        return redirect('list_user')  # o la URL que prefieras
     hoy = timezone.now().date()
     
     # Obtener la carrera del usuario (primera carrera si tiene múltiples)

@@ -315,9 +315,13 @@ class DirectivoForm(forms.ModelForm):
 
 ############################################################
 class MateriaForm(forms.ModelForm):
-      class Meta:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filtrar solo usuarios con rol 'Profesor'
+        self.fields['profesor'].queryset = Usuario.objects.filter(rol='Profesor')
+    
+    class Meta:
         model = Materia
-        
         fields = ['nombre_materia', 'carrera', 'profesor', 'anio', 'Horario','inscripcionAbierta']
         widgets = {
            'nombre_materia': forms.TextInput(attrs={'class':'form-control'}),
@@ -337,7 +341,6 @@ class MateriaForm(forms.ModelForm):
            'horario' : 'Horario',
            'inscripcionAbierta': 'Inscripción abierta',
         }
-
 
 class MesaFinalForm(forms.ModelForm):
     class Meta:
