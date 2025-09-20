@@ -376,6 +376,45 @@ class InscripcionFinalForm(forms.ModelForm):
     class Meta:
         model = InscripcionFinal
         fields = ['usuario', 'llamado']
+        widgets = {
+            'usuario': forms.Select(attrs={'class': 'form-control'}),
+            'llamado': forms.Select(attrs={'class': 'form-control'})
+        }
+        labels = {
+            'usuario': 'Estudiante',
+            'llamado': 'Mesa Final'
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filtrar solo usuarios con rol 'Estudiante'
+        self.fields['usuario'].queryset = Usuario.objects.filter(rol='Estudiante').order_by('nombre_completo')
+        
+        # Filtrar solo mesas con inscripción abierta y vigentes
+        self.fields['llamado'].queryset = MesaFinal.objects.filter(
+            inscripcionAbierta=True,
+            vigente=True
+        ).select_related('materia').order_by('materia__nombre_materia', 'llamado')
+        
+        # Configurar etiquetas para mostrar información útil
+        self.fields['usuario'].empty_label = "Seleccione un estudiante"
+        self.fields['llamado'].empty_label = "Seleccione una mesa final"
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        usuario = cleaned_data.get('usuario')
+        llamado = cleaned_data.get('llamado')
+        
+        if usuario and llamado:
+            # Verificar que el usuario sea estudiante
+            if usuario.rol != 'Estudiante':
+                raise forms.ValidationError("Solo los estudiantes pueden inscribirse a mesas finales.")
+            
+            # Verificar duplicados
+            if InscripcionFinal.objects.filter(usuario=usuario, llamado__materia=llamado.materia).exists():
+                raise forms.ValidationError(f"El estudiante ya está inscripto a una mesa de {llamado.materia.nombre_materia}")
+        
+        return cleaned_data
 
 class InscripcionMateriaForm(forms.ModelForm):
     class Meta:

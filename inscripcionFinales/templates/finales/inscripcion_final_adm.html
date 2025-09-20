@@ -1,90 +1,576 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Inscripcion Final{% endblock %}
+{% block title %}Inscripción Final{% endblock %}
 
 {% block content %}
-{% if request.user.is_staff or request.user.is_superuser or request.user.is_admin %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Inscripción Final</title>
-    <style>
-        body {
-            overflow-y:hidden;
-          }
-    </style>  
-</head>
-<body>
-    <h1>Inscripción Final</h1>
-    <div class="card" style="background-color: #d7d1dc">
-        <div class="card-body">     
-    <form id="formulario" method="post" style="font-size: 1.9em;">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <script>
-            document.getElementById("id_aprobada").hidden=true
-            document.getElementById("id_aprobada").previousElementSibling.hidden=true
-        </script>
-        <div id="message-popup" style="display:none;">
-            <p id="message-text"></p>
-        </div> 
-        <br>
-        <button id="envio_formulario"class="btn btn-primary" type="submit" style="margin-left: 90px;">Inscribirse</button>
-    </form>
-    {% else %}
+{% load inscripcionfinales_extras %}
 
-    <div class="text-center">
-        <img src="/static/imagenes/error403.jpg" class="rounded"></img>
-        <br>
-      <h3>No deberías estar acá. Para volver, <a href="/">hace click acá</a></h3>
+<!-- Meta tag para CSRF token -->
+<meta name="csrf-token" content="{{ csrf_token }}">
+
+<!-- Token CSRF hidden para AJAX -->
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+<!-- Verificar que solo estudiantes puedan acceder -->
+{% if request.user.rol == 'Estudiante' %}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-xl-8 col-lg-10 col-md-12">
+            <!-- Header Section -->
+            <div class="text-center mb-5">
+                <div class="mb-4">
+                        <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">                        <i class="fas fa-graduation-cap text-white" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+                <h1 class="display-5 fw-bold text-dark mb-3">Inscripción a Mesa Final</h1>
+                <p class="lead text-muted">Seleccione el estudiante para ver sus finales disponibles</p>
+            </div>
+
+            <!-- Form Card -->
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <!-- Paso 1: Seleccionar Estudiante -->
+                    <div id="paso1">
+                        <div class="mb-5">
+                            <label for="select_estudiante" class="form-label fw-bold text-dark mb-3 fs-5">
+                                <i class="fas fa-user me-3 text-primary"></i>Seleccionar Estudiante
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-primary text-white border-0">
+                                    <i class="fas fa-user-graduate"></i>
+                                </span>
+                                <select id="select_estudiante" class="form-control" required>
+                                    <option value="">Seleccione un estudiante...</option>
+                                    {% for estudiante in estudiantes %}
+                                        <option value="{{ estudiante.id }}">{{ estudiante.nombre_completo }} ({{ estudiante.dni }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div id="estudiante-error" class="text-danger mt-2 fw-semibold" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="button" id="btnVerFinales" class="btn btn-primary btn-lg py-3" disabled>
+                                <i class="fas fa-search me-3"></i>Ver Finales Disponibles
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Paso 2: Mostrar Finales Disponibles -->
+                    <div id="paso2" style="display: none;">
+                        <div class="mb-4">
+                            <button type="button" id="btnVolver" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cambiar Estudiante
+                            </button>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5 class="fw-bold text-dark">
+                                <i class="fas fa-user me-2 text-primary"></i>
+                                Estudiante: <span id="nombre_estudiante_seleccionado"></span>
+                            </h5>
+                        </div>
+
+                        <!-- Loading -->
+                        <div id="loading_finales" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Cargando finales disponibles...</p>
+                        </div>
+
+                        <!-- Lista de Finales -->
+                        <div id="lista_finales" style="display: none;">
+                            <div class="mb-4">
+                                <h6 class="fw-bold text-dark mb-3">
+                                    <i class="fas fa-calendar-check me-2 text-success"></i>Finales Disponibles
+                                </h6>
+                                <div id="finales_container"></div>
+                            </div>
+                        </div>
+
+                        <!-- Sin Finales -->
+                        <div id="sin_finales" style="display: none;">
+                            <div class="alert alert-warning border-0" style="background-color: #fff8e1;">
+                                <div class="text-center py-4">
+                                    <i class="fas fa-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                                    <h6 class="mt-3 mb-2">No hay finales disponibles</h6>
+                                    <p class="mb-0 text-muted">Este estudiante no cumple los requisitos para ningún final o no hay mesas abiertas.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Información de Requisitos -->
+                    <div class="mb-5 mt-4">
+                        <div class="card border-0" style="background-color: #f8f9fa;">
+                            <div class="card-body p-4">
+                                <h6 class="fw-bold text-dark mb-3">
+                                    <i class="fas fa-list-check me-2 text-success"></i>Requisitos para inscribirse:
+                                </h6>
+                                <ul class="list-unstyled mb-0">
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Estar inscripto en la materia
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Tener nota de cursada ≥ 7 (o cursar en modalidad libre)
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Haber aprobado las materias correlativas
+                                    </li>
+                                    <li class="mb-0">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        No estar ya inscripto en otra mesa de la misma materia
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Modal de Confirmación -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title" id="confirmModalLabel">
+                    <i class="fas fa-question-circle me-2"></i>Confirmar Inscripción
+                </h5>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-3">
+                    <i class="fas fa-user-plus text-primary" style="font-size: 3rem;"></i>
+                </div>
+                <h6 class="mb-3" id="confirmMessage">¿Está seguro de inscribir al estudiante?</h6>
+                <p class="text-muted mb-0" id="confirmDetails"></p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-success px-4" id="btnConfirmarInscripcion">
+                    <i class="fas fa-check me-2"></i>Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
-    {% endif %}
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white border-0">
+                <h5 class="modal-title" id="successModalLabel">
+                    <i class="fas fa-check-circle me-2"></i>Inscripción Exitosa
+                </h5>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-3">
+                    <i class="fas fa-user-check text-success" style="font-size: 3rem;"></i>
+                </div>
+                <h6 class="mb-3" id="successMessage">El estudiante se ha inscripto correctamente al final</h6>
+                <p class="text-muted mb-0">La inscripción ha sido registrada en el sistema</p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-success px-4" onclick="location.reload()">
+                    <i class="fas fa-plus me-2"></i>Nueva Inscripción
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title" id="errorModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Error en la Inscripción
+                </h5>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-3">
+                    <i class="fas fa-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <h6 class="mb-3" id="errorMessage">Error al inscribir al estudiante</h6>
+            </div>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-danger px-4" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+
+<!-- Acceso denegado para no estudiantes -->
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="text-center">
+                <div class="mb-4">
+                    <i class="fas fa-user-slash text-warning" style="font-size: 5rem;"></i>
+                </div>
+                <h3 class="mb-3 text-dark">Acceso Restringido</h3>
+                <p class="text-muted mb-4 lead">Solo los estudiantes pueden inscribirse a mesas finales.</p>
+                <a href="/" class="btn btn-primary btn-lg mt-3">
+                    <i class="fas fa-home me-2"></i>Volver al Inicio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+<style>
+/* Custom Styles */
+.form-control, .form-select {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    background-color: #fff;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.15);
+    background-color: #fff;
+}
+
+.input-group-text {
+    border: 2px solid #e9ecef;
+    border-right: none;
+    border-radius: 12px 0 0 12px;
+    padding: 1rem 1.25rem;
+    font-size: 1.1rem;
+}
+
+.input-group .form-control, .input-group .form-select {
+    border-left: none;
+    border-radius: 0 12px 12px 0;
+}
+
+.btn-lg {
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border-width: 2px;
+}
+
+.btn-success:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(25, 135, 84, 0.3);
+}
+
+.btn-outline-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(108, 117, 125, 0.2);
+}
+
+.card {
+    border: none;
+    border-radius: 20px;
+    background-color: #fff;
+}
+
+.modal-content {
+    border-radius: 20px;
+}
+
+.final-card {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.final-card:hover {
+    border-color: #198754;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(25, 135, 84, 0.2);
+}
+
+.final-card.selected {
+    border-color: #198754;
+    background-color: #f8fff8;
+}
+
+/* Loading state for button */
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* Animation for error states */
+.shake {
+    animation: shake 0.6s;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .display-5 {
+        font-size: 2rem;
+    }
+    
+    .card-body {
+        padding: 2rem !important;
+    }
+    
+    .input-group-lg .form-control,
+    .input-group-lg .form-select,
+    .input-group-lg .input-group-text {
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+    }
+}
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
-    $('#formulario').on('submit', function(e) {
-        e.preventDefault();
+    let estudianteSeleccionado = null;
+    let finalSeleccionado = null;
+
+    // Función para obtener el token CSRF
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Habilitar botón cuando se selecciona estudiante
+    $('#select_estudiante').on('change', function() {
+        const estudianteId = $(this).val();
+        $('#btnVerFinales').prop('disabled', !estudianteId);
+        estudianteSeleccionado = estudianteId;
+    });
+
+    // Ver finales disponibles
+    $('#btnVerFinales').on('click', function() {
+        if (!estudianteSeleccionado) return;
+
+        // Mostrar paso 2 y ocultar paso 1
+        $('#paso1').hide();
+        $('#paso2').show();
+        $('#loading_finales').show();
+        $('#lista_finales').hide();
+        $('#sin_finales').hide();
+
+        // Mostrar nombre del estudiante
+        const nombreEstudiante = $('#select_estudiante option:selected').text();
+        $('#nombre_estudiante_seleccionado').text(nombreEstudiante);
+
+        // Cargar finales via AJAX
         $.ajax({
-            type: 'POST',
-            url: '{% url "inscripcionFinal" %}',
-            data: $(this).serialize(),
-            dataType: 'json',
+            url: '/obtener_finales_estudiante/',
+            method: 'GET',
+            data: { estudiante_id: estudianteSeleccionado },
             success: function(response) {
-                if (response.status === 'nose') {
-                    $('#message-text').css('color', 'red');
-                    $('#message-text').text(response.message);
-                    $('#message-popup').show();
-                    setTimeout(function() {
-                        $('#message-popup').hide();
-                    }, 3000);  // El mensaje desaparecerá después de 3 segundos
+                $('#loading_finales').hide();
+                
+                if (response.status === 'success' && response.finales.length > 0) {
+                    mostrarFinales(response.finales);
+                } else {
+                    $('#sin_finales').show();
                 }
-                else if (response.status==='success')
-                {
-                    $('#message-text').css('color', 'green');
-                    $('#message-text').text(response.message);
-                    $('#message-popup').show();
-                }
-                else if (response.status=== 'duplicado')
-                {   
-                    $('#message-text').css('color', 'red');
-                    $('#message-text').text(response.message);
-                    $('#message-popup').show();
-                    setTimeout(function() {
-                        $('#message-popup').hide();
-                    }, 3000); 
-                }       
             },
-            error: function(xhr, errmsg, err) {
-                document.getElementById("formulario").submit()
+            error: function() {
+                $('#loading_finales').hide();
+                $('#sin_finales').show();
             }
         });
     });
+
+    // Volver al paso 1
+    $('#btnVolver').on('click', function() {
+        $('#paso2').hide();
+        $('#paso1').show();
+        finalSeleccionado = null;
+    });
+
+    // Mostrar finales en cards
+    function mostrarFinales(finales) {
+        let html = '';
+        
+        finales.forEach(function(final) {
+            html += `
+                <div class="final-card p-4 mb-3" data-final-id="${final.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="fw-bold text-dark mb-2">
+                                <i class="fas fa-book me-2 text-success"></i>
+                                ${final.materia}
+                            </h6>
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-calendar me-2"></i>
+                                ${final.fecha_llamado}
+                            </p>
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>Nota: ${final.nota_cursada}
+                                </span>
+                                <span class="badge bg-info">
+                                    <i class="fas fa-graduation-cap me-1"></i>${final.modalidad}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button class="btn btn-success btn-inscribir" data-final-id="${final.id}">
+                                <i class="fas fa-user-plus me-2"></i>Inscribir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        $('#finales_container').html(html);
+        $('#lista_finales').show();
+
+        // Event listener para botones de inscripción
+        $('.btn-inscribir').on('click', function() {
+            const finalId = $(this).data('final-id');
+            const final = finales.find(f => f.id == finalId);
+            mostrarConfirmacion(final);
+        });
+    }
+
+    // Mostrar modal de confirmación
+    function mostrarConfirmacion(final) {
+        const nombreEstudiante = $('#select_estudiante option:selected').text();
+        
+        $('#confirmMessage').text(`¿Inscribir a ${nombreEstudiante.split(' (')[0]}?`);
+        $('#confirmDetails').text(`Materia: ${final.materia} - Fecha: ${final.fecha_llamado}`);
+        
+        finalSeleccionado = final.id;
+        $('#confirmModal').modal('show');
+    }
+
+    // Confirmar inscripción
+    $('#btnConfirmarInscripcion').on('click', function() {
+        if (!estudianteSeleccionado || !finalSeleccionado) {
+            console.log('Error: Datos faltantes', { estudianteSeleccionado, finalSeleccionado });
+            return;
+        }
+
+        const btnConfirmar = $(this);
+        btnConfirmar.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Inscribiendo...');
+
+        // Obtener el token CSRF de diferentes maneras
+        let csrftoken = getCookie('csrftoken');
+        if (!csrftoken) {
+            csrftoken = $('[name=csrfmiddlewaretoken]').val();
+        }
+        if (!csrftoken) {
+            csrftoken = $('meta[name=csrf-token]').attr('content');
+        }
+        
+        console.log('Token CSRF:', csrftoken ? 'Obtenido' : 'NO encontrado');
+        
+        // Crear FormData para envío
+        const formData = new FormData();
+        formData.append('usuario', estudianteSeleccionado);
+        formData.append('llamado', finalSeleccionado);
+        formData.append('csrfmiddlewaretoken', csrftoken);
+        
+        console.log('Enviando datos:', {
+            usuario: estudianteSeleccionado,
+            llamado: finalSeleccionado,
+            csrf: csrftoken ? 'Incluido' : 'NO incluido'
+        });
+
+        $.ajax({
+            url: '/inscribir_final/',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            timeout: 10000, // 10 segundos de timeout
+            success: function(response) {
+                console.log('Respuesta del servidor:', response);
+                $('#confirmModal').modal('hide');
+                
+                if (response.status === 'success') {
+                    $('#successMessage').text(response.message);
+                    $('#successModal').modal('show');
+                } else {
+                    $('#errorMessage').text(response.message || 'Error desconocido');
+                    $('#errorModal').modal('show');
+                }
+            },
+            error: function(xhr, textStatus, errorThrown) {
+                console.log('Error en AJAX:', xhr.status, textStatus, errorThrown);
+                $('#confirmModal').modal('hide');
+                
+                let errorMessage = 'Error de conexión. Intente nuevamente.';
+                
+                if (xhr.status === 403) {
+                    errorMessage = 'Error de permisos. Recargue la página e intente nuevamente.';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'Recurso no encontrado. Verifique la configuración.';
+                } else if (xhr.status === 500) {
+                    errorMessage = 'Error interno del servidor.';
+                } else if (xhr.responseText) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        errorMessage = response.message || errorMessage;
+                    } catch(e) {
+                        console.log('Error parseando respuesta:', e);
+                    }
+                }
+                
+                $('#errorMessage').text(errorMessage);
+                $('#errorModal').modal('show');
+            },
+            complete: function() {
+                // Siempre resetear el botón al final
+                $('#btnConfirmarInscripcion').prop('disabled', false).html('<i class="fas fa-check me-2"></i>Confirmar');
+            }
+        });
+    });
+
+    // Agregar token CSRF para AJAX
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", $('[name=csrfmiddlewaretoken]').val());
+            }
+        }
+    });
 });
-
-
 </script>
-    {%endblock%}
-</body>
-</html>
+
+<!-- Token CSRF para AJAX -->
+{% csrf_token %}
+
+{% endblock %}

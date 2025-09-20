@@ -70,6 +70,11 @@ urlpatterns = [
     path('mesas_finales/', MesasFinalesListView.as_view(), name='mesas_finales_list'),
     path('inscribir_mesa_final/', inscribir_mesa_final, name='inscribir_mesa_final'),
     #Alta e Inscripcion mesa de final
+
+    # Y AGREGAR solo estas dos nuevas rutas después de la línea 73:
+    path('obtener_finales_estudiante/', obtener_finales_estudiante, name='obtener_finales_estudiante'),
+    path('inscribir_final/', inscribir_final, name='inscribir_final'),
+
     path('acta_volante/<int:final_id>/', login_required(acta_volante), name='acta_volante'),
     path('exito_final_eliminado_est/', exito_final_eliminado_est, name='exito_final_eliminado_est'),
     path('exito_final_eliminado_adm/', exito_final_eliminado_adm, name='exito_final_eliminado_adm'),
@@ -102,6 +107,7 @@ urlpatterns = [
     path('mesas/eliminar_seleccionadas/', eliminar_mesas_seleccionadas, name='eliminar_mesas_seleccionadas'),
     path("delete_mesa/<int:pk>",login_required(deleteMesa.as_view(template_name='finales/delete_mesa.html')),name='delete_mesa'),
     path("delete_inscripcion/<int:pk>",login_required(deleteInscripcion.as_view(template_name='finales/delete_inscripcion.html')),name='delete_inscripcion'),
+
     #Estudiantes
     path('estudiantes/nuevo', EstudianteCreateView.as_view(), name='estudiante_nuevo'),
     path('estudiantes/<int:pk>/editar/', EstudianteUpdateView.as_view(), name='estudiante_editar'),
