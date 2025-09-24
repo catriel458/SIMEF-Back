@@ -182,8 +182,35 @@ class carreraView(CreateView):
 
 class listUser(ListView):
     model = Usuario
-    usuario=Usuario.objects.all()
     template_name = 'registration/list_user.html'
+    paginate_by = 20  # Agregar paginación
+    
+    def get_queryset(self):
+        queryset = Usuario.objects.all().order_by('rol', 'nombre_completo')
+        
+        # Filtrar por rol si se especifica
+        rol_filter = self.request.GET.get('rol')
+        if rol_filter:
+            queryset = queryset.filter(rol=rol_filter)
+            
+        # Filtrar por búsqueda si se especifica
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(nombre_completo__icontains=search) |
+                Q(email__icontains=search) |
+                Q(dni__icontains=search)
+            )
+            
+        return queryset
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Agregar opciones de roles para filtros
+        context['roles'] = Usuario.ROL_CHOICES
+        context['rol_actual'] = self.request.GET.get('rol', '')
+        context['search_actual'] = self.request.GET.get('search', '')
+        return context
     
 class listInscripcion(ListView):
     model = InscripcionFinal

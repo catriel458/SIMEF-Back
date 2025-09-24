@@ -10,6 +10,7 @@ from .models import *
 from django.utils.crypto import get_random_string
 
 validador= RegexValidator(r'^[0-9]*$','Solo se permiten números')
+
 class institutoForms(forms.ModelForm):
       nombre_instituto = forms.CharField(max_length=30)
       email = forms.CharField(max_length=20)
@@ -39,24 +40,19 @@ class carreraForm(forms.ModelForm):
 
 class usuarios_materiaForm(forms.ModelForm):
       nombre_materia = forms.CharField( max_length=100)
+      # Filtrar solo profesores para el campo profesor
+      profesor = forms.ModelChoiceField(
+          queryset=Usuario.objects.filter(rol='Profesor'),
+          empty_label="Seleccione un profesor",
+          required=False
+      )
+      
       class Meta:
         model = Materia
         fields =(
           'nombre_materia',
           'carrera',
           'profesor'
-
-        )
-
-class usuarios_materiaForm(forms.ModelForm):
-      nombre_materia = forms.CharField( max_length=100)
-      class Meta:
-        model = Materia
-        fields =(
-          'nombre_materia',
-          'carrera',
-          'profesor'
-
         )
 
 class materiaCorrelativaForm(forms.ModelForm):
@@ -307,6 +303,7 @@ class PreceptorForm(forms.ModelForm):
     class Meta:
         model = Preceptor
         fields = '__all__'
+        
 class DirectivoForm(forms.ModelForm):
     class Meta:
         model = Directivo 
@@ -315,14 +312,20 @@ class DirectivoForm(forms.ModelForm):
 
 ############################################################
 class MateriaForm(forms.ModelForm):
-      class Meta:
+    # Filtrar solo usuarios con rol de profesor
+    profesor = forms.ModelChoiceField(
+        queryset=Usuario.objects.filter(rol='Profesor').order_by('nombre_completo'),
+        empty_label="Seleccione un profesor",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Profesor'
+    )
+    
+    class Meta:
         model = Materia
-        
-        fields = ['nombre_materia', 'carrera', 'profesor', 'anio', 'Horario','inscripcionAbierta']
+        fields = ['nombre_materia', 'carrera', 'profesor', 'anio', 'dia', 'Horario', 'inscripcionAbierta']
         widgets = {
            'nombre_materia': forms.TextInput(attrs={'class':'form-control'}),
            'carrera': forms.Select(attrs={'class':'form-control'}),
-           'profesor': forms.Select(attrs={'class':'form-control'}),
            'anio': forms.Select(attrs={'class':'form-control'}),
            'dia': forms.Select(attrs={'class':'form-control'}),
            'Horario': forms.Select(attrs={'class':'form-control'}),
@@ -333,8 +336,8 @@ class MateriaForm(forms.ModelForm):
            'carrera': 'Carrera',
            'profesor': 'Profesor',
            'anio': 'Año', 
-           'dia' : 'Dia',
-           'horario' : 'Horario',
+           'dia': 'Día',
+           'Horario': 'Horario',
            'inscripcionAbierta': 'Inscripción abierta',
         }
 
@@ -348,15 +351,57 @@ class MesaFinalForm(forms.ModelForm):
             'inscripcionAbierta': forms.CheckboxInput(attrs={'class':'form-check-input'})
         }
 
-class InscripcionFinalForm(forms.ModelForm):
-    class Meta:
-        model = InscripcionFinal
-        fields = ['usuario', 'llamado']
-
 class InscripcionMateriaForm(forms.ModelForm):
+    # CORREGIDO: Filtrar SOLO usuarios con rol 'Estudiante' (no superuser)
+    usuario = forms.ModelChoiceField(
+        queryset=Usuario.objects.filter(rol='Estudiante', is_superuser=False).order_by('nombre_completo'),
+        empty_label="Seleccione un estudiante",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Estudiante'
+    )
+    
+    # Filtrar solo materias que tengan inscripción abierta
+    materia = forms.ModelChoiceField(
+        queryset=Materia.objects.filter(inscripcionAbierta=True).order_by('nombre_materia'),
+        empty_label="Seleccione una materia",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Materia'
+    )
+    
+    # Usar las opciones correctas de modalidad
+    modalidad = forms.ChoiceField(
+        choices=[('', 'Seleccione modalidad')] + list(MODALIDAD_CHOICES),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Modalidad',
+        required=False
+    )
+    
+    # Campo institución como input manual
+    institucion = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese la institución'}),
+        label='Institución'
+    )
+    
+    # Campo turno con opciones predefinidas
+    turno = forms.ChoiceField(
+        choices=[('', 'Seleccione turno')] + [('Mañana','Mañana'), ('Tarde','Tarde'), ('Noche','Noche')],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Turno',
+        required=False
+    )
+    
     class Meta:
         model = usuarios_materia
-        fields = ['usuario', 'materia', 'modalidad']
+        fields = ['usuario', 'materia', 'modalidad', 'institucion', 'turno']
+        labels = {
+            'usuario': 'Estudiante',
+            'materia': 'Materia',
+            'modalidad': 'Modalidad',
+            'institucion': 'Institución',
+            'turno': 'Turno'
+        }
 
 class NotaFinalForm(forms.Form):
     nota_final = forms.DecimalField(max_digits=4, decimal_places=2, min_value=0, max_value=10)
@@ -386,9 +431,49 @@ class NotaCursadaForm(forms.ModelForm):
 
 
 class InscripcionFinalForm(forms.ModelForm):
+    # Filtrar solo usuarios con rol de estudiante
+    usuario = forms.ModelChoiceField(
+        queryset=Usuario.objects.filter(rol='Estudiante').order_by('nombre_completo'),
+        empty_label="Seleccione un estudiante",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Estudiante'
+    )
+    
+    # Filtrar solo mesas finales con inscripción abierta
+    llamado = forms.ModelChoiceField(
+        queryset=MesaFinal.objects.filter(inscripcionAbierta=True, vigente=True).order_by('materia__nombre_materia', 'llamado'),
+        empty_label="Seleccione una mesa final",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Mesa Final'
+    )
+    
     class Meta:
         model = InscripcionFinal
-        fields = ['usuario', 'llamado', 'aprobada']
+        fields = ['usuario', 'llamado']
+        widgets = {
+            'aprobada': forms.HiddenInput(),  # Ocultar el campo aprobada
+        }
+        labels = {
+            'usuario': 'Estudiante',
+            'llamado': 'Mesa Final'
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Personalizar la representación de las opciones de llamado
+        self.fields['llamado'].queryset = MesaFinal.objects.filter(
+            inscripcionAbierta=True, 
+            vigente=True
+        ).select_related('materia').order_by('materia__nombre_materia', 'llamado')
+        
+        # Personalizar cómo se muestran las opciones
+        choices = [('', 'Seleccione una mesa final')]
+        for mesa in self.fields['llamado'].queryset:
+            fecha_str = mesa.llamado.strftime('%d/%m/%Y %H:%M')
+            choice_text = f"{mesa.materia.nombre_materia} - {fecha_str}"
+            choices.append((mesa.pk, choice_text))
+        
+        self.fields['llamado'].choices = choices
 
 class FiltroInscripcionForm(forms.Form):
     estudiante = forms.CharField(required=False)

@@ -85,6 +85,57 @@ class Usuario(AbstractBaseUser,PermissionsMixin):
             return self.nombre_completo
         else:
             return self.email
+        
+    def es_estudiante(self):
+        """Verifica si el usuario es estudiante"""
+        return self.rol == 'Estudiante'
+    
+    def es_profesor(self):
+        """Verifica si el usuario es profesor"""
+        return self.rol == 'Profesor'
+    
+    def es_directivo(self):
+        """Verifica si el usuario es directivo"""
+        return self.rol == 'Directivo'
+    
+    def es_preceptor(self):
+        """Verifica si el usuario es preceptor"""
+        return self.rol == 'Preceptor'
+    
+    def es_administrador(self):
+        """Verifica si el usuario es administrador"""
+        return self.rol == 'Administrador'
+    
+    def es_bibliotecario(self):
+        """Verifica si el usuario es bibliotecario"""
+        return self.rol == 'Bibliotecario'
+    
+    def puede_ensenar(self):
+        """Verifica si el usuario puede enseñar materias"""
+        return self.es_profesor() or self.is_staff or self.is_superuser
+    
+    def puede_inscribirse_materias(self):
+        """Verifica si el usuario puede inscribirse en materias"""
+        return self.es_estudiante()
+    
+    def puede_administrar(self):
+        """Verifica si el usuario puede realizar tareas administrativas"""
+        return self.es_directivo() or self.es_preceptor() or self.is_staff or self.is_superuser
+    
+    @classmethod
+    def obtener_profesores(cls):
+        """Método de clase para obtener todos los profesores"""
+        return cls.objects.filter(rol='Profesor').order_by('nombre_completo')
+    
+    @classmethod
+    def obtener_estudiantes(cls):
+        """Método de clase para obtener todos los estudiantes"""
+        return cls.objects.filter(rol='Estudiante').order_by('nombre_completo')
+    
+    @classmethod
+    def obtener_por_rol(cls, rol):
+        """Método de clase para obtener usuarios por rol específico"""
+        return cls.objects.filter(rol=rol).order_by('nombre_completo')
 
     
 
@@ -184,14 +235,25 @@ class usuarios_materia(models.Model):
     nota_final=models.FloatField('Nota de Final',null=True,blank=True)
     aprobada= models.BooleanField(default=False)
     condicional= models.BooleanField(default=False)
-    modalidad=models.CharField('Modalidad',choices=MODALIDAD_CHOICES,max_length=2, null=True, blank=True)
-    ciclo_lectivo=models.CharField('Ciclo lectivo',unique = True,null=True, blank=True, max_length=100)
+    modalidad=models.CharField('Modalidad',choices=MODALIDAD_CHOICES,max_length=20, null=True, blank=True)
+    ciclo_lectivo=models.CharField('Ciclo lectivo',null=True, blank=True, max_length=100)
+    
+    # Nuevos campos agregados
+    institucion = models.CharField('Institución', max_length=100, blank=True, null=True)
+    
+    TURNO_CHOICES = (
+        ('Mañana','Mañana'),
+        ('Tarde','Tarde'),
+        ('Noche','Noche')
+    )
+    turno = models.CharField('Turno', max_length=20, choices=TURNO_CHOICES, blank=True, null=True)
 
     def __str__(self):
         return f"{self.materia} -> {self.usuario}"
     
     def puede_inscribirse_en_una_materia(self):
         return ((self.nota_cursada >= 4 and self.nota_cursada is not None ) or self.modalidad == 'Libre') and self.aprobada == False
+    
     def puede_inscribirse_en_mesa_final(self):
         return ((self.nota_cursada >= 4 and self.nota_cursada is not None ) or self.modalidad == 'Libre') and self.aprobada == False
     

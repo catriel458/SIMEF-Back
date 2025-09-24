@@ -20,7 +20,49 @@
         <div class="card-body">      
     <form method="post" style="font-size: 1.9em;">
         {% csrf_token %}
-        {{ form.as_p }}
+        
+        <div class="mb-3">
+            <label for="{{ form.usuario.id_for_label }}" class="form-label">{{ form.usuario.label }}:</label>
+            {{ form.usuario }}
+            {% if form.usuario.errors %}
+                <div class="text-danger">{{ form.usuario.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.materia.id_for_label }}" class="form-label">{{ form.materia.label }}:</label>
+            {{ form.materia }}
+            {% if form.materia.errors %}
+                <div class="text-danger">{{ form.materia.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.modalidad.id_for_label }}" class="form-label">{{ form.modalidad.label }}:</label>
+            {{ form.modalidad }}
+            {% if form.modalidad.errors %}
+                <div class="text-danger">{{ form.modalidad.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <!-- NUEVOS CAMPOS AGREGADOS -->
+        <div class="mb-3">
+            <label for="{{ form.institucion.id_for_label }}" class="form-label">{{ form.institucion.label }}:</label>
+            {{ form.institucion }}
+            {% if form.institucion.errors %}
+                <div class="text-danger">{{ form.institucion.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.turno.id_for_label }}" class="form-label">{{ form.turno.label }}:</label>
+            {{ form.turno }}
+            {% if form.turno.errors %}
+                <div class="text-danger">{{ form.turno.errors }}</div>
+            {% endif %}
+        </div>
+        <!-- FIN NUEVOS CAMPOS -->
+        
         <script>
             document.getElementById("id_aprobada").hidden=true
             document.getElementById("id_aprobada").previousElementSibling.hidden=true

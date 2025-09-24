@@ -45,7 +45,6 @@ Si se presenta el siguiente error : no such tables : inscripcionFinales_usuario 
 ESTE VA: python manage.py migrate --run-syncdb
 
 
-
 Para acceder al backoffice http://127.0.0.1:8000/admin se deberá crear un usuario superadmin de la forma:
 
 `python manage.py createsuperuser`
