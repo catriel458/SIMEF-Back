@@ -68,6 +68,15 @@ class materiaCorrelativaForm(forms.ModelForm):
           'materia_correlativa'
         )
 
+# forms.py
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.utils.crypto import get_random_string
+from django.core.mail import send_mail
+from django.conf import settings
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
 class registri_user_form(UserCreationForm):
     email = forms.EmailField(required=True)
     dni = forms.CharField(max_length=15, validators=[validador])
@@ -136,17 +145,85 @@ class registri_user_form(UserCreationForm):
             'rol', 'carrera', 'especialidad', 'cargo', 'area'
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Generar el password al inicializar el formulario
+        self.password_generado = get_random_string(
+            length=10, 
+            allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+        )
+
     def clean(self):
-        password = get_random_string(length=10, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789')
-        self.cleaned_data['password1'] = password
-        self.cleaned_data['password2'] = password
-        return super().clean()
+        cleaned_data = super().clean()
+        # Usar el password generado
+        cleaned_data['password1'] = self.password_generado
+        cleaned_data['password2'] = self.password_generado
+        return cleaned_data
+
+    def enviar_credenciales_email(self, usuario, password):
+        """Envía las credenciales por email al usuario registrado"""
+        try:
+            # Contexto para el template del email
+            contexto = {
+                'usuario': usuario,
+                'email': usuario.email,
+                'password': password,
+                'nombre_completo': usuario.nombre_completo or usuario.username,
+                'rol': usuario.get_rol_display() if hasattr(usuario, 'get_rol_display') else usuario.rol,
+            }
+            
+            # Si tienes el template HTML, úsalo
+            try:
+                html_message = render_to_string('emails/credenciales_usuario.html', contexto)
+                plain_message = strip_tags(html_message)
+            except:
+                # Fallback a mensaje simple si no tienes el template
+                plain_message = f"""
+Bienvenido/a {contexto['nombre_completo']}!
+
+Tus credenciales de acceso al Sistema Educativo son:
+
+📧 Email: {contexto['email']}
+🔑 Contraseña: {contexto['password']}
+👤 Rol: {contexto['rol']}
+
+Por favor guarda esta información en un lugar seguro.
+
+Saludos,
+Sistema Educativo
+                """.strip()
+                html_message = None
+            
+            # Enviar email
+            send_mail(
+                subject='Credenciales de Acceso - Sistema Educativo',
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[usuario.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            
+            print(f"✅ Credenciales enviadas exitosamente a {usuario.email}")
+            print(f"   📧 Email: {usuario.email}")
+            print(f"   🔑 Password: {password}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error enviando email a {usuario.email}: {str(e)}")
+            # Mostrar las credenciales en consola como fallback
+            print(f"   📧 Email: {usuario.email}")
+            print(f"   🔑 Password: {password}")
+            return False
 
     def save(self, commit=True):
         usuario = super().save(commit=False)
         rol = self.cleaned_data.get('rol', '').lower()
-        print(usuario.dni)
-        usuario.set_password(str(usuario.dni))
+        
+        # 🔑 CAMBIO PRINCIPAL: Usar el password generado, no el DNI
+        print(f"DNI del usuario: {usuario.dni}")
+        print(f"Password generado: {self.password_generado}")
+        usuario.set_password(self.password_generado)  # ← Usar password generado
         
         # Asignar todos los campos adicionales
         usuario.username = self.cleaned_data.get('username', '')
@@ -176,11 +253,13 @@ class registri_user_form(UserCreationForm):
                 estado_civil=usuario.estado_civil,
                 sexo=usuario.sexo,
                 rol=usuario.rol,
-                matricula=get_random_string(length=8, allowed_chars='0123456789')  # Generar matrícula automática
+                matricula=get_random_string(length=8, allowed_chars='0123456789')
             )
+            estudiante.set_password(self.password_generado)  # ← También para estudiante
             if self.cleaned_data.get('carrera'):
                 estudiante.carrera.set([self.cleaned_data['carrera']])
             usuario = estudiante
+            
         elif rol == 'profesor':
             usuario = Profesor.objects.create(
                 username=usuario.username,
@@ -199,6 +278,8 @@ class registri_user_form(UserCreationForm):
                 rol=usuario.rol,
                 especialidad=self.cleaned_data.get('especialidad', '')
             )
+            usuario.set_password(self.password_generado)  # ← También para profesor
+            
         elif rol == 'directivo':
             usuario = Directivo.objects.create(
                 username=usuario.username,
@@ -217,6 +298,8 @@ class registri_user_form(UserCreationForm):
                 rol=usuario.rol,
                 cargo=self.cleaned_data.get('cargo', '')
             )
+            usuario.set_password(self.password_generado)  # ← También para directivo
+            
         elif rol == 'preceptor':
             usuario = Preceptor.objects.create(
                 username=usuario.username,
@@ -235,33 +318,39 @@ class registri_user_form(UserCreationForm):
                 rol=usuario.rol,
                 area=self.cleaned_data.get('area', '')
             )
-               
+            usuario.set_password(self.password_generado)  # ← También para preceptor
+
         usuario.save()
+        
+        # 📧 Enviar email con las credenciales después de guardar
+        if commit:
+            self.enviar_credenciales_email(usuario, self.password_generado)
+        
         return usuario
 
 
+# Tu formulario de perfil se mantiene igual
 class profile_students_form(forms.ModelForm):   
-  class Meta:
-    model = Usuario
-    fields = (
-      'username',
-      'nombre_completo',
-      'fecha_nac',
-      'dni',
-      'direccion',
-      'localidad',
-      'ciudad',
-      'nacionalidad',
-      'telefono_1',
-      'telefono_2',
-      'estado_civil',
-      'sexo',
-      
-
-    )
-  dni = forms.CharField(max_length=15, validators=[validador])
-  telefono_1 = forms.CharField(max_length=15, validators=[validador])
-  telefono_2 = forms.CharField(max_length=15, validators=[validador])
+    class Meta:
+        model = Usuario
+        fields = (
+            'username',
+            'nombre_completo',
+            'fecha_nac',
+            'dni',
+            'direccion',
+            'localidad',
+            'ciudad',
+            'nacionalidad',
+            'telefono_1',
+            'telefono_2',
+            'estado_civil',
+            'sexo',
+        )
+    
+    dni = forms.CharField(max_length=15, validators=[validador])
+    telefono_1 = forms.CharField(max_length=15, validators=[validador])
+    telefono_2 = forms.CharField(max_length=15, validators=[validador])
   
     
 class mesa_form(forms.ModelForm):   
