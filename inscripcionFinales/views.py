@@ -1333,12 +1333,11 @@ def editar_notas(request, id):
     
     context = {
         'form': form,
-        'usuario_materia': usuario_materia,
-        'estudiante': usuario_materia.usuario.nombre_completo,
-        'materia': usuario_materia.materia.nombre_materia,
-        'modalidad': usuario_materia.modalidad
+        'usuarios_materia': usuario_materia,  # Cambiar el nombre de la variable para que coincida con el template
     }
     return render(request, 'materias/cargar_nota.html', context)
+
+
 
 
 def abrir_inscripcion_materia(request,carrera,anio):
