@@ -45,8 +45,8 @@
             {% endif %}
         </div>
         
-        <!-- NUEVOS CAMPOS AGREGADOS -->
-        <div class="mb-3">
+        <!-- NUEVOS CAMPOS AGREGADOS - Solo visibles cuando modalidad es "Itinerante" -->
+        <div class="mb-3" id="div_institucion" style="display: block;">
             <label for="{{ form.institucion.id_for_label }}" class="form-label">{{ form.institucion.label }}:</label>
             {{ form.institucion }}
             {% if form.institucion.errors %}
@@ -54,7 +54,7 @@
             {% endif %}
         </div>
         
-        <div class="mb-3">
+        <div class="mb-3" id="div_turno" style="display: block;">
             <label for="{{ form.turno.id_for_label }}" class="form-label">{{ form.turno.label }}:</label>
             {{ form.turno }}
             {% if form.turno.errors %}
@@ -64,8 +64,23 @@
         <!-- FIN NUEVOS CAMPOS -->
         
         <script>
-            document.getElementById("id_aprobada").hidden=true
-            document.getElementById("id_aprobada").previousElementSibling.hidden=true
+            // Ocultar campo aprobada si existe
+            if (document.getElementById("id_aprobada")) {
+                document.getElementById("id_aprobada").hidden = true;
+                document.getElementById("id_aprobada").previousElementSibling.hidden = true;
+            }
+            
+            
+            // Ejecutar al cargar la página
+            document.addEventListener('DOMContentLoaded', function() {
+                toggleCamposItinerante();
+                
+                // Agregar listener al cambio de modalidad
+                const modalidadSelect = document.getElementById('id_modalidad');
+                if (modalidadSelect) {
+                    modalidadSelect.addEventListener('change', toggleCamposItinerante);
+                }
+            });
         </script>
         <br>
         <button class="btn btn-primary" type="submit" style="margin-left: 90px;">Inscribirse</button>

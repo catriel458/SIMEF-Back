@@ -176,8 +176,8 @@ class Instituto(models.Model):
 
 class Materia(models.Model):
     nombre_materia = models.CharField('nombre_materia', max_length=50)
-    carrera = models.ForeignKey('Carrera',on_delete=models.CASCADE,null=True)
-    profesor = models.ForeignKey('Usuario',on_delete=models.CASCADE,null=True)
+    carrera = models.ForeignKey('Carrera', on_delete=models.CASCADE, null=True)
+    profesor = models.ForeignKey('Usuario', on_delete=models.CASCADE, null=True)
     inscripcionAbierta = models.BooleanField(default=False)
 
     Inicio = '12:00'
@@ -229,14 +229,14 @@ class MateriaCorrelativa(models.Model):
         return f"{self.materia} -> {self.materia_correlativa}"
 
 class usuarios_materia(models.Model):
-    materia = models.ForeignKey('Materia',on_delete=models.CASCADE,null=False, blank=False)
-    usuario= models.ForeignKey('Usuario',on_delete=models.CASCADE,null=False, blank=False)
-    nota_cursada=models.FloatField('Nota de Cursada',null=True,blank=True)
-    nota_final=models.FloatField('Nota de Final',null=True,blank=True)
-    aprobada= models.BooleanField(default=False)
-    condicional= models.BooleanField(default=False)
-    modalidad=models.CharField('Modalidad',choices=MODALIDAD_CHOICES,max_length=20, null=True, blank=True)
-    ciclo_lectivo=models.CharField('Ciclo lectivo',null=True, blank=True, max_length=100)
+    materia = models.ForeignKey('Materia', on_delete=models.CASCADE, null=False, blank=False)
+    usuario = models.ForeignKey('Usuario', on_delete=models.CASCADE, null=False, blank=False)  # 'Usuario' con mayúscula
+    nota_cursada = models.FloatField('Nota de Cursada', null=True, blank=True)
+    nota_final = models.FloatField('Nota de Final', null=True, blank=True)
+    aprobada = models.BooleanField(default=False)
+    condicional = models.BooleanField(default=False)
+    modalidad = models.CharField('Modalidad', choices=MODALIDAD_CHOICES, max_length=20, null=True, blank=True)
+    ciclo_lectivo = models.CharField('Ciclo lectivo', null=True, blank=True, max_length=100)
     
     # Nuevos campos agregados
     institucion = models.CharField('Institución', max_length=100, blank=True, null=True)
@@ -258,7 +258,7 @@ class usuarios_materia(models.Model):
         return ((self.nota_cursada >= 4 and self.nota_cursada is not None ) or self.modalidad == 'Libre') and self.aprobada == False
     
 class MesaFinal(models.Model):
-    materia= models.ForeignKey(Materia, on_delete=models.CASCADE, blank=False, null=False )
+    materia = models.ForeignKey('Materia', on_delete=models.CASCADE, blank=False, null=False)
     llamado= models.DateTimeField('Llamado', null=False, blank=False) 
     vigente= models.BooleanField(default=True)
     inscripcionAbierta = models.BooleanField(default=False) 
@@ -266,8 +266,8 @@ class MesaFinal(models.Model):
         return f"{self.materia} -> {self.llamado}"
 
 class InscripcionFinal(models.Model):
-    usuario= models.ForeignKey(Usuario, on_delete=models.CASCADE, blank=False, null=False)
-    llamado= models.ForeignKey(MesaFinal, on_delete=models.CASCADE, blank=False, null=False)
+    usuario = models.ForeignKey('Usuario', on_delete=models.CASCADE, blank=False, null=False)  # 'Usuario' con mayúscula
+    llamado = models.ForeignKey('MesaFinal', on_delete=models.CASCADE, blank=False, null=False)
     aprobada= models.BooleanField(null=True) 
     inscripcionAbierta=models.BooleanField(default=False)
 

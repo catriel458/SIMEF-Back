@@ -376,19 +376,22 @@ class InscripcionMateriaForm(forms.ModelForm):
         required=False
     )
     
-    # Campo institución como input manual
+    # Campo institución como input manual - SOLO REQUERIDO para Itinerante
     institucion = forms.CharField(
         max_length=100,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese la institución'}),
-        label='Institución'
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'placeholder': 'Ingrese la institución (Solo en modalidad Itinerante)'
+        }),
+        label='Institución (Solo en modalidad Itinerante)'
     )
     
-    # Campo turno con opciones predefinidas
+    # Campo turno con opciones predefinidas - SOLO REQUERIDO para Itinerante
     turno = forms.ChoiceField(
-        choices=[('', 'Seleccione turno')] + [('Mañana','Mañana'), ('Tarde','Tarde'), ('Noche','Noche')],
+        choices=[('', 'Seleccione turno (Solo en modalidad Itinerante)')] + [('Mañana','Mañana'), ('Tarde','Tarde'), ('Noche','Noche')],
         widget=forms.Select(attrs={'class': 'form-control'}),
-        label='Turno',
+        label='Turno (Solo en modalidad Itinerante)',
         required=False
     )
     
@@ -399,9 +402,24 @@ class InscripcionMateriaForm(forms.ModelForm):
             'usuario': 'Estudiante',
             'materia': 'Materia',
             'modalidad': 'Modalidad',
-            'institucion': 'Institución',
-            'turno': 'Turno'
+            'institucion': 'Institución (Solo en modalidad Itinerante)',
+            'turno': 'Turno (Solo en modalidad Itinerante)'
         }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        modalidad = cleaned_data.get('modalidad')
+        institucion = cleaned_data.get('institucion')
+        turno = cleaned_data.get('turno')
+        
+        # Validar que si la modalidad es "Itinerante", institución y turno sean requeridos
+        if modalidad == 'Itinerante':
+            if not institucion:
+                self.add_error('institucion', 'Este campo es requerido para la modalidad Itinerante.')
+            if not turno:
+                self.add_error('turno', 'Este campo es requerido para la modalidad Itinerante.')
+        
+        return cleaned_data
 
 class NotaFinalForm(forms.Form):
     nota_final = forms.DecimalField(max_digits=4, decimal_places=2, min_value=0, max_value=10)
