@@ -1317,11 +1317,29 @@ def editar_notas(request, id):
         form = NotaCursadaForm(request.POST, instance=usuario_materia)
         if form.is_valid():
             form.save()
+            messages.success(request, 'Las notas han sido actualizadas correctamente.')
             return redirect('/listaMateriasAdm/')
+        else:
+            # Agregar mensajes de error específicos
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':  # Errores generales del formulario
+                        messages.error(request, error)
+                    else:
+                        field_name = form.fields[field].label or field
+                        messages.error(request, f'{field_name}: {error}')
     else:
         form = NotaCursadaForm(instance=usuario_materia)
     
-    return render(request, 'materias/cargar_nota.html', {'form': form})
+    context = {
+        'form': form,
+        'usuario_materia': usuario_materia,
+        'estudiante': usuario_materia.usuario.nombre_completo,
+        'materia': usuario_materia.materia.nombre_materia,
+        'modalidad': usuario_materia.modalidad
+    }
+    return render(request, 'materias/cargar_nota.html', context)
+
 
 def abrir_inscripcion_materia(request,carrera,anio):
     if request.user.is_staff or request.user.is_superuser:
