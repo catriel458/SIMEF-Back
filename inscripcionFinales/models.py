@@ -55,6 +55,7 @@ class Usuario(AbstractBaseUser,PermissionsMixin):
     is_active = models.BooleanField(default = True)
     is_staff = models.BooleanField(default = False)
     carrera = models.ManyToManyField('Carrera',blank=True)
+    first_login = models.BooleanField(default=True, help_text="True si es el primer login del usuario")
     Estudiante = 'Estudiante'          
     Preceptor = 'Preceptor'
     Profesor = 'Profesor'

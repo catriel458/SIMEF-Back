@@ -114,6 +114,12 @@ urlpatterns = [
     path('estudiantes/<int:pk>/eliminar/', EstudianteDeleteView.as_view(), name='estudiante_eliminar'),
     path('cargaMasivaEstudiantes/',login_required(cargar_usuarios),name='cargaMasivaEstudiantes'),
     path('ver_usuario_materia/',listar_usuarios_materia,name='verUsuarioMateria'),
+
+    # Primer logeo
+
+     path('change_password_first/', FirstLoginPasswordChangeView.as_view(), name='first_login_password_change'),
+     path('change_password_first/done/', first_login_password_change_done, name='first_login_password_change_done'),
+
     ###TESTING###
     path('validar-inscripcion/<int:usuario_id>/<int:materia_id>/', validar_inscripcion_final, name='validar_inscripcion_final'),
     

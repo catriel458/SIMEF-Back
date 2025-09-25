@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.views import LoginView, LogoutView    
 from .models import *
 from .forms import *
-from django.views.generic import CreateView,TemplateView,ListView,UpdateView,DeleteView
+from django.views.generic import CreateView,TemplateView,ListView,UpdateView,DeleteView,FormView
 from django.core.mail import send_mail
 from django.contrib.auth import *
 from django.contrib import messages
@@ -34,6 +34,13 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 
+from django.contrib.auth.views import PasswordChangeView
+from django.contrib import messages
+from django.shortcuts import render, redirect
+
+# Agregar estos imports específicos para el primer login
+from django.contrib.auth.forms import SetPasswordForm  # ← Nuevo
+from django.contrib.auth import login    
 
 #from weasyprint import HTML, CSS
 
@@ -61,24 +68,31 @@ class CustomLogoutView(LogoutView):
 
 
 class registerView(CreateView):
-    
     model = Usuario
     form_class = registri_user_form
     
-
     def form_valid(self, form):
+        usuario_email = form.cleaned_data.get('email')
+        password1 = form.cleaned_data.get('password1')
         
-        usuario = form.cleaned_data.get('username')
-        email = form.cleaned_data.get('email')
-        password = form.cleaned_data.get('password1')
-        password = form.cleaned_data.get('password2')
-        usuario = authenticate(email=email, password=password)
-    
+        # Crear el usuario
+        nuevo_usuario = form.save(commit=False)
+        nuevo_usuario.first_login = True
+        nuevo_usuario.save()
         
-        form.save()
-        #login(self.request, usuario)
-        
-        #send_mail('subject', f'\n-Su Usuario es: {email} \n- Su contraseña es: {password}\nLink para cambiar contraseña es: http://http://127.0.0.1:8000/change_password/<int:pk>,',from_email='webmaster.isfdyt210@gmail.com',recipient_list = [email])
+        # DESCOMENTA Y CORRIGE ESTA LÍNEA:
+        from django.core.mail import send_mail
+        try:
+            send_mail(
+                subject='Credenciales de acceso - Sistema Instituto',
+                message=f'Bienvenido al sistema.\n\nTus credenciales de acceso son:\n- Email: {usuario_email}\n- Contraseña temporal: {password1}\n\nPor seguridad, deberás cambiar esta contraseña en tu primer ingreso.',
+                from_email='proyec.i210@gmail.com',
+                recipient_list=[usuario_email],
+                fail_silently=False,
+            )
+            messages.success(self.request, f'Usuario creado exitosamente. Se han enviado las credenciales a {usuario_email}')
+        except Exception as e:
+            messages.warning(self.request, f'Usuario creado, pero hubo un error al enviar el email: {str(e)}')
         
         return redirect('/user_list')
     
@@ -1993,3 +2007,32 @@ def validar_inscripcion_final(usuario_id, materia_id):
             return False
     
     return True
+
+class FirstLoginPasswordChangeView(FormView):
+    form_class = SetPasswordForm
+    template_name = 'registration/first_login_password_change.html'
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+    
+    def get_success_url(self):
+        return '/change_password_first/done/'
+    
+    def form_valid(self, form):
+        # Cambiar la contraseña sin pedir la anterior
+        form.save()
+        
+        # Marcar que ya no es primer login
+        self.request.user.first_login = False
+        self.request.user.save()
+        
+        # Mantener la sesión activa después del cambio
+        login(self.request, self.request.user)
+        
+        messages.success(self.request, 'Contraseña cambiada exitosamente. Ya puedes usar el sistema normalmente.')
+        return super().form_valid(form)
+    
+def first_login_password_change_done(request):
+    return render(request, 'registration/first_login_success.html')
