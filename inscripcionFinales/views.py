@@ -231,8 +231,35 @@ class carreraView(CreateView):
 
 class listUser(ListView):
     model = Usuario
-    usuario=Usuario.objects.all()
     template_name = 'registration/list_user.html'
+    paginate_by = 20  # Agregar paginación
+    
+    def get_queryset(self):
+        queryset = Usuario.objects.all().order_by('rol', 'nombre_completo')
+        
+        # Filtrar por rol si se especifica
+        rol_filter = self.request.GET.get('rol')
+        if rol_filter:
+            queryset = queryset.filter(rol=rol_filter)
+            
+        # Filtrar por búsqueda si se especifica
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(nombre_completo__icontains=search) |
+                Q(email__icontains=search) |
+                Q(dni__icontains=search)
+            )
+            
+        return queryset
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Agregar opciones de roles para filtros
+        context['roles'] = Usuario.ROL_CHOICES
+        context['rol_actual'] = self.request.GET.get('rol', '')
+        context['search_actual'] = self.request.GET.get('search', '')
+        return context
     
 class listInscripcion(ListView):
     model = InscripcionFinal
@@ -1333,11 +1360,28 @@ def editar_notas(request, id):
         form = NotaCursadaForm(request.POST, instance=usuario_materia)
         if form.is_valid():
             form.save()
+            messages.success(request, 'Las notas han sido actualizadas correctamente.')
             return redirect('/listaMateriasAdm/')
+        else:
+            # Agregar mensajes de error específicos
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':  # Errores generales del formulario
+                        messages.error(request, error)
+                    else:
+                        field_name = form.fields[field].label or field
+                        messages.error(request, f'{field_name}: {error}')
     else:
         form = NotaCursadaForm(instance=usuario_materia)
     
-    return render(request, 'materias/cargar_nota.html', {'form': form})
+    context = {
+        'form': form,
+        'usuarios_materia': usuario_materia,  # Cambiar el nombre de la variable para que coincida con el template
+    }
+    return render(request, 'materias/cargar_nota.html', context)
+
+
+
 
 def abrir_inscripcion_materia(request,carrera,anio):
     if request.user.is_staff or request.user.is_superuser:
