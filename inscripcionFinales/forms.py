@@ -401,7 +401,7 @@ class DirectivoForm(forms.ModelForm):
 
 ############################################################
 class MateriaForm(forms.ModelForm):
-<<<<<<< HEAD
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Filtrar solo usuarios con rol 'Profesor'
@@ -410,7 +410,7 @@ class MateriaForm(forms.ModelForm):
     class Meta:
         model = Materia
         fields = ['nombre_materia', 'carrera', 'profesor', 'anio', 'Horario','inscripcionAbierta']
-=======
+
     # Filtrar solo usuarios con rol de profesor
     profesor = forms.ModelChoiceField(
         queryset=Usuario.objects.filter(rol='Profesor').order_by('nombre_completo'),
@@ -422,7 +422,6 @@ class MateriaForm(forms.ModelForm):
     class Meta:
         model = Materia
         fields = ['nombre_materia', 'carrera', 'profesor', 'anio', 'dia', 'Horario', 'inscripcionAbierta']
->>>>>>> Simef-Hernan-Sofi
         widgets = {
            'nombre_materia': forms.TextInput(attrs={'class':'form-control'}),
            'carrera': forms.Select(attrs={'class':'form-control'}),
@@ -471,7 +470,6 @@ class MesaFinalForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             self.fields['materia'].disabled = True
 
-<<<<<<< HEAD
 class InscripcionFinalForm(forms.ModelForm):
     class Meta:
         model = InscripcionFinal
@@ -516,8 +514,7 @@ class InscripcionFinalForm(forms.ModelForm):
         
         return cleaned_data
 
-=======
->>>>>>> Simef-Hernan-Sofi
+
 class InscripcionMateriaForm(forms.ModelForm):
     # CORREGIDO: Filtrar SOLO usuarios con rol 'Estudiante' (no superuser)
     usuario = forms.ModelChoiceField(
