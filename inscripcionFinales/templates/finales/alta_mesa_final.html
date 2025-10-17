@@ -3,72 +3,70 @@
 {% block title %}Alta de Mesa Final{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-xl-6 col-lg-8 col-md-10">
-            <!-- Header Section -->
-            <div class="text-center mb-5">
-                <div class="mb-4">
-                    <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <i class="fas fa-calendar-plus text-white" style="font-size: 2rem;"></i>
+<div class="container-fluid min-vh-100 d-flex align-items-center" style="background-color: #e8e4f0;">
+    <div class="row w-100 justify-content-center align-items-center">
+        <!-- Columna izquierda - Formulario -->
+        <div class="col-lg-5 col-md-6 col-sm-10">
+            <div class="form-container p-5" style="background-color: #d7d1dc;">
+                <h2 class="text-center mb-4" style="font-size: 1.8rem; font-weight: 600; color: #333;">
+                    Completar los siguientes campos:
+                </h2>
+                
+                <form id="formulario" method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Materia -->
+                    <div class="mb-4">
+                        <label for="{{ form.materia.id_for_label }}" class="form-label text-center d-block mb-3" style="font-size: 1.1rem; font-weight: 500; color: #333;">
+                            Nombre de materia:
+                        </label>
+                        {{ form.materia }}
+                        <div id="materia-error" class="text-danger text-center mt-2 fw-semibold" style="display: none;"></div>
                     </div>
-                </div>
-                <h1 class="display-5 fw-bold text-dark mb-3">Alta de Mesa Final</h1>
-                <p class="lead text-muted">Complete los datos para crear una nueva mesa de examen final</p>
+
+                    <!-- Llamado (Fecha y Hora) -->
+                    <div class="mb-4">
+                        <label for="{{ form.llamado.id_for_label }}" class="form-label text-center d-block mb-3" style="font-size: 1.1rem; font-weight: 500; color: #333;">
+                            Fecha y Hora:
+                        </label>
+                        {{ form.llamado }}
+                        <div id="llamado-error" class="text-danger text-center mt-2 fw-semibold" style="display: none;"></div>
+                    </div>
+
+                    <!-- Campo oculto de vigente si existe en el form -->
+                    {% if form.vigente %}
+                        <div style="display: none;">
+                            {{ form.vigente }}
+                        </div>
+                    {% endif %}
+
+                    <!-- Campo oculto de inscripcionAbierta si existe en el form -->
+                    {% if form.inscripcionAbierta %}
+                        <div style="display: none;">
+                            {{ form.inscripcionAbierta }}
+                        </div>
+                    {% endif %}
+                </form>
             </div>
+        </div>
 
-            <!-- Form Card -->
-            <div class="card shadow-lg border-0">
-                <div class="card-body p-5">
-                    <form id="formulario" method="post" novalidate>
-                        {% csrf_token %}
-                        
-                        <!-- Materia Field -->
-                        <div class="mb-5">
-                            <label for="{{ form.materia.id_for_label }}" class="form-label fw-bold text-dark mb-3 fs-5">
-                                <i class="fas fa-book me-3 text-primary"></i>Seleccionar Materia
-                            </label>
-                            <div class="input-group input-group-lg">
-                                <span class="input-group-text bg-primary text-white border-0">
-                                    <i class="fas fa-graduation-cap"></i>
-                                </span>
-                                {{ form.materia.as_widget }}
-                            </div>
-                            <div id="materia-error" class="text-danger mt-2 fw-semibold" style="display: none;"></div>
-                        </div>
-
-                        <!-- Llamado Field -->
-                        <div class="mb-5">
-                            <label for="{{ form.llamado.id_for_label }}" class="form-label fw-bold text-dark mb-3 fs-5">
-                                <i class="fas fa-calendar-alt me-3 text-primary"></i>Fecha y Hora del Llamado
-                            </label>
-                            <div class="input-group input-group-lg">
-                                <span class="input-group-text bg-primary text-white border-0">
-                                    <i class="fas fa-clock"></i>
-                                </span>
-                                {{ form.llamado.as_widget }}
-                            </div>
-                            <div id="llamado-error" class="text-danger mt-2 fw-semibold" style="display: none;"></div>
-                            <div class="alert alert-info mt-3 border-0" style="background-color: #e3f2fd;">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <strong>Importante:</strong> La fecha del llamado debe ser posterior al día de hoy
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="d-grid gap-3">
-                            <button type="submit" class="btn btn-primary btn-lg py-3" id="btnGuardar" style="font-size: 1.2rem;">
-                                <span class="btn-text">
-                                    <i class="fas fa-save me-3"></i>Guardar Mesa Final
-                                </span>
-                                <span class="spinner-border spinner-border-sm me-3" style="display: none;" id="loadingSpinner"></span>
-                            </button>
-                            <a href="{% url 'list_mesa' %}" class="btn btn-outline-secondary btn-lg py-3" style="font-size: 1.1rem;">
-                                <i class="fas fa-arrow-left me-3"></i>Cancelar y Volver
-                            </a>
-                        </div>
-                    </form>
-                </div>
+        <!-- Columna derecha - Logo y Botones -->
+        <div class="col-lg-4 col-md-5 col-sm-10 text-center mt-5 mt-md-0">
+            <div class="logo-container mb-5">
+                <img src="/static/imagenes/SIMEF.png" alt="SIMEF Logo" style="width: 100%; max-width: 400px; height: auto;">
+            </div>
+            
+            <div class="d-grid gap-3">
+                <button type="submit" form="formulario" class="btn btn-primary btn-lg py-3" id="btnGuardar" 
+                    style="font-size: 1.3rem; font-weight: 600; border-radius: 0; background-color: #4d4dff; border: none; box-shadow: 0 4px 10px rgba(77, 77, 255, 0.3);">
+                    <span class="btn-text">Guardar</span>
+                    <span class="spinner-border spinner-border-sm ms-2" style="display: none;" id="loadingSpinner"></span>
+                </button>
+                
+                <a href="{% url 'list_mesa' %}" class="btn btn-link btn-lg" 
+                    style="font-size: 1.2rem; font-weight: 500; color: #4d4dff; text-decoration: none;">
+                    Volver
+                </a>
             </div>
         </div>
     </div>
@@ -105,7 +103,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-danger text-white border-0">
                 <h5 class="modal-title" id="errorModalLabel">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Error en la Fecha
+                    <i class="fas fa-exclamation-triangle me-2"></i>Error
                 </h5>
             </div>
             <div class="modal-body text-center py-4">
@@ -113,7 +111,7 @@
                     <i class="fas fa-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
                 </div>
                 <h6 class="mb-3" id="errorMessage">Error al crear la mesa final</h6>
-                <p class="text-muted mb-0">Por favor, corrija la fecha e intente nuevamente</p>
+                <p class="text-muted mb-0">Por favor, corrija los datos e intente nuevamente</p>
             </div>
             <div class="modal-footer border-0 justify-content-center">
                 <button type="button" class="btn btn-danger px-4" data-bs-dismiss="modal">
@@ -137,78 +135,65 @@
 </div>
 
 <style>
-/* Custom Styles */
+/* Estilos generales */
+body {
+    overflow-x: hidden;
+}
+
+/* Estilos de campos del formulario */
 .form-control, .form-select {
-    border: 2px solid #e9ecef;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    font-size: 1.1rem;
+    border: none;
+    border-radius: 0;
+    padding: 0.9rem 1.2rem;
+    font-size: 1.05rem;
+    background-color: #ffffff;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
-    background-color: #fff;
 }
 
 .form-control:focus, .form-select:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    outline: none;
+    box-shadow: 0 4px 10px rgba(77, 77, 255, 0.2);
+    border: 2px solid #4d4dff;
     background-color: #fff;
 }
 
-.input-group-text {
-    border: 2px solid #e9ecef;
-    border-right: none;
-    border-radius: 12px 0 0 12px;
-    padding: 1rem 1.25rem;
-    font-size: 1.1rem;
+.form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
 }
 
-.input-group .form-control, .input-group .form-select {
-    border-left: none;
-    border-radius: 0 12px 12px 0;
+/* Estilos para input de fecha y hora */
+input[type="datetime-local"] {
+    cursor: pointer;
 }
 
-.btn-lg {
-    border-radius: 12px;
-    font-weight: 600;
+/* Botón principal */
+.btn-primary {
     transition: all 0.3s ease;
-    border-width: 2px;
 }
 
 .btn-primary:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.3);
+    box-shadow: 0 6px 15px rgba(77, 77, 255, 0.4) !important;
+    background-color: #3d3dff !important;
 }
 
-.btn-outline-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(108, 117, 125, 0.2);
+.btn-primary:active {
+    transform: translateY(-1px);
 }
 
-.card {
-    border: none;
-    border-radius: 20px;
-    background-color: #fff;
+/* Botón volver */
+.btn-link:hover {
+    transform: scale(1.05);
+    transition: all 0.3s ease;
 }
 
-.modal-content {
-    border-radius: 20px;
-}
-
-.form-label {
-    margin-bottom: 0.75rem;
-}
-
-.alert {
-    border-radius: 12px;
-    font-size: 0.95rem;
-}
-
-/* Loading state for button */
-.btn-loading {
-    pointer-events: none;
-    opacity: 0.7;
-}
-
-/* Animation for error states */
+/* Animación de error */
 .shake {
     animation: shake 0.6s;
 }
@@ -219,22 +204,69 @@
     75% { transform: translateX(8px); }
 }
 
-/* Responsive adjustments */
+/* Campo con error */
+.is-invalid {
+    border: 2px solid #dc3545 !important;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.15) !important;
+}
+
+/* Loading state para el botón */
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* Contenedor del formulario */
+.form-container {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-radius: 0;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-    .display-5 {
-        font-size: 2rem;
-    }
-    
-    .card-body {
+    .form-container {
         padding: 2rem !important;
     }
     
-    .input-group-lg .form-control,
-    .input-group-lg .form-select,
-    .input-group-lg .input-group-text {
-        padding: 0.875rem 1rem;
-        font-size: 1rem;
+    .logo-container img {
+        max-width: 250px !important;
     }
+    
+    h2 {
+        font-size: 1.5rem !important;
+    }
+    
+    .form-label {
+        font-size: 1rem !important;
+    }
+    
+    .btn-lg {
+        font-size: 1.1rem !important;
+        padding: 0.75rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid {
+        padding: 1rem;
+    }
+    
+    .form-container {
+        padding: 1.5rem !important;
+    }
+}
+
+/* Etiquetas del formulario */
+.form-label {
+    color: #333;
+    font-weight: 500;
+}
+
+/* Placeholder personalizado */
+.form-control::placeholder,
+.form-select option:first-child {
+    color: #999;
+    font-style: italic;
 }
 </style>
 
@@ -272,9 +304,18 @@ $(document).ready(function() {
         }
     });
 
+    // Evitar envío múltiple
+    let formSubmitting = false;
+
     // Envío del formulario
     $('#formulario').on('submit', function(e) {
         e.preventDefault();
+        
+        if (formSubmitting) {
+            console.log('Envío bloqueado - formulario ya en proceso');
+            return false;
+        }
+        
         console.log('Formulario enviado');
         
         // Validar formulario
@@ -284,6 +325,8 @@ $(document).ready(function() {
         }
 
         console.log('Validación exitosa, enviando datos...');
+        
+        formSubmitting = true;
         
         // Mostrar estado de carga
         showLoading();
@@ -303,6 +346,7 @@ $(document).ready(function() {
                 console.log('Content-Type:', xhr.getResponseHeader('Content-Type'));
                 
                 hideLoading();
+                formSubmitting = false;
                 
                 // Verificar si la respuesta es JSON
                 if (xhr.getResponseHeader('Content-Type') && xhr.getResponseHeader('Content-Type').includes('application/json')) {
@@ -327,6 +371,7 @@ $(document).ready(function() {
                 console.log('Response Text:', xhr.responseText);
                 
                 hideLoading();
+                formSubmitting = false;
                 
                 if (xhr.status === 200) {
                     // Status 200 pero no JSON - probablemente éxito
@@ -435,7 +480,7 @@ function hideLoading() {
     $('#loadingOverlay').hide();
     $('#btnGuardar').prop('disabled', false).removeClass('btn-loading');
     $('#loadingSpinner').hide();
-    $('.btn-text').html('<i class="fas fa-save me-3"></i>Guardar Mesa Final');
+    $('.btn-text').text('Guardar');
 }
 
 function showSuccessModal() {
@@ -448,7 +493,7 @@ function showSuccessModal() {
 }
 
 function showErrorModal(message) {
-    const defaultMessage = 'Por favor, corrija la fecha e intente nuevamente';
+    const defaultMessage = 'Por favor, corrija los datos e intente nuevamente';
     $('#errorMessage').text(message || defaultMessage);
     $('#errorModal').modal('show');
     
@@ -461,23 +506,5 @@ function showErrorModal(message) {
 function redirectToList() {
     window.location.href = '{% url "list_mesa" %}';
 }
-
-// Evitar envío múltiple
-let formSubmitting = false;
-
-$('#formulario').on('submit', function(e) {
-    if (formSubmitting) {
-        console.log('Envío bloqueado - formulario ya en proceso');
-        e.preventDefault();
-        return false;
-    }
-    formSubmitting = true;
-    
-    // Resetear después de 3 segundos
-    setTimeout(() => {
-        formSubmitting = false;
-        console.log('Flag de envío reseteado');
-    }, 3000);
-});
 </script>
 {% endblock %}

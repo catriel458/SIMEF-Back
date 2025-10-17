@@ -14,123 +14,122 @@
 <!-- Verificar que solo estudiantes puedan acceder -->
 {% if request.user.rol == 'Estudiante' %}
 
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-xl-8 col-lg-10 col-md-12">
-            <!-- Header Section -->
-            <div class="text-center mb-5">
-                <div class="mb-4">
-                        <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">                        <i class="fas fa-graduation-cap text-white" style="font-size: 2rem;"></i>
+<div class="container-fluid min-vh-100 d-flex align-items-center" style="background-color: #e8e4f0;">
+    <div class="row w-100 justify-content-center align-items-center">
+        <!-- Columna izquierda - Formulario -->
+        <div class="col-lg-5 col-md-6 col-sm-10">
+            <div class="form-container p-5" style="background-color: #d7d1dc;">
+                <h2 class="text-center mb-4" style="font-size: 1.8rem; font-weight: 600; color: #333;">
+                    Inscripción a Mesa Final
+                </h2>
+                
+                <!-- Paso 1: Seleccionar Estudiante -->
+                <div id="paso1">
+                    <div class="mb-4">
+                        <label for="select_estudiante" class="form-label text-center d-block mb-3" style="font-size: 1.1rem; font-weight: 500; color: #333;">
+                            Seleccionar Estudiante:
+                        </label>
+                        <select id="select_estudiante" class="form-control" required>
+                            <option value="">Seleccione un estudiante...</option>
+                            {% for estudiante in estudiantes %}
+                                <option value="{{ estudiante.id }}">{{ estudiante.nombre_completo }} ({{ estudiante.dni }})</option>
+                            {% endfor %}
+                        </select>
+                        <div id="estudiante-error" class="text-danger text-center mt-2 fw-semibold" style="display: none;"></div>
                     </div>
                 </div>
-                <h1 class="display-5 fw-bold text-dark mb-3">Inscripción a Mesa Final</h1>
-                <p class="lead text-muted">Seleccione el estudiante para ver sus finales disponibles</p>
+
+                <!-- Paso 2: Mostrar Finales Disponibles -->
+                <div id="paso2" style="display: none;">
+                    <div class="mb-4">
+                        <button type="button" id="btnVolver" class="btn btn-outline-secondary w-100" style="border-radius: 0;">
+                            <i class="fas fa-arrow-left me-2"></i>Cambiar Estudiante
+                        </button>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-dark text-center" style="font-size: 1.1rem;">
+                            Estudiante: <span id="nombre_estudiante_seleccionado"></span>
+                        </h6>
+                    </div>
+
+                    <!-- Loading -->
+                    <div id="loading_finales" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Cargando finales disponibles...</p>
+                    </div>
+
+                    <!-- Lista de Finales -->
+                    <div id="lista_finales" style="display: none;">
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-dark mb-3 text-center">
+                                <i class="fas fa-calendar-check me-2 text-success"></i>Finales Disponibles
+                            </h6>
+                            <div id="finales_container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Sin Finales -->
+                    <div id="sin_finales" style="display: none;">
+                        <div class="alert alert-warning border-0" style="background-color: #fff8e1; border-radius: 0;">
+                            <div class="text-center py-3">
+                                <i class="fas fa-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                                <h6 class="mt-3 mb-2">No hay finales disponibles</h6>
+                                <p class="mb-0 text-muted small">Este estudiante no cumple los requisitos para ningún final o no hay mesas abiertas.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información de Requisitos -->
+                <div class="mt-4">
+                    <div class="card border-0" style="background-color: #c9c3d0; border-radius: 0;">
+                        <div class="card-body p-3">
+                            <h6 class="fw-bold text-dark mb-3" style="font-size: 0.95rem;">
+                                <i class="fas fa-list-check me-2 text-success"></i>Requisitos para inscribirse:
+                            </h6>
+                            <ul class="list-unstyled mb-0" style="font-size: 0.9rem;">
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Estar inscripto en la materia
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Tener nota de cursada ≥ 7 (o cursar en modalidad libre)
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Haber aprobado las materias correlativas
+                                </li>
+                                <li class="mb-0">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    No estar ya inscripto en otra mesa de la misma materia
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <!-- Form Card -->
-            <div class="card shadow-lg border-0">
-                <div class="card-body p-5">
-                    <!-- Paso 1: Seleccionar Estudiante -->
-                    <div id="paso1">
-                        <div class="mb-5">
-                            <label for="select_estudiante" class="form-label fw-bold text-dark mb-3 fs-5">
-                                <i class="fas fa-user me-3 text-primary"></i>Seleccionar Estudiante
-                            </label>
-                            <div class="input-group input-group-lg">
-                                <span class="input-group-text bg-primary text-white border-0">
-                                    <i class="fas fa-user-graduate"></i>
-                                </span>
-                                <select id="select_estudiante" class="form-control" required>
-                                    <option value="">Seleccione un estudiante...</option>
-                                    {% for estudiante in estudiantes %}
-                                        <option value="{{ estudiante.id }}">{{ estudiante.nombre_completo }} ({{ estudiante.dni }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div id="estudiante-error" class="text-danger mt-2 fw-semibold" style="display: none;"></div>
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="button" id="btnVerFinales" class="btn btn-primary btn-lg py-3" disabled>
-                                <i class="fas fa-search me-3"></i>Ver Finales Disponibles
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Paso 2: Mostrar Finales Disponibles -->
-                    <div id="paso2" style="display: none;">
-                        <div class="mb-4">
-                            <button type="button" id="btnVolver" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Cambiar Estudiante
-                            </button>
-                        </div>
-
-                        <div class="mb-4">
-                            <h5 class="fw-bold text-dark">
-                                <i class="fas fa-user me-2 text-primary"></i>
-                                Estudiante: <span id="nombre_estudiante_seleccionado"></span>
-                            </h5>
-                        </div>
-
-                        <!-- Loading -->
-                        <div id="loading_finales" class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Cargando...</span>
-                            </div>
-                            <p class="mt-3 text-muted">Cargando finales disponibles...</p>
-                        </div>
-
-                        <!-- Lista de Finales -->
-                        <div id="lista_finales" style="display: none;">
-                            <div class="mb-4">
-                                <h6 class="fw-bold text-dark mb-3">
-                                    <i class="fas fa-calendar-check me-2 text-success"></i>Finales Disponibles
-                                </h6>
-                                <div id="finales_container"></div>
-                            </div>
-                        </div>
-
-                        <!-- Sin Finales -->
-                        <div id="sin_finales" style="display: none;">
-                            <div class="alert alert-warning border-0" style="background-color: #fff8e1;">
-                                <div class="text-center py-4">
-                                    <i class="fas fa-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
-                                    <h6 class="mt-3 mb-2">No hay finales disponibles</h6>
-                                    <p class="mb-0 text-muted">Este estudiante no cumple los requisitos para ningún final o no hay mesas abiertas.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Información de Requisitos -->
-                    <div class="mb-5 mt-4">
-                        <div class="card border-0" style="background-color: #f8f9fa;">
-                            <div class="card-body p-4">
-                                <h6 class="fw-bold text-dark mb-3">
-                                    <i class="fas fa-list-check me-2 text-success"></i>Requisitos para inscribirse:
-                                </h6>
-                                <ul class="list-unstyled mb-0">
-                                    <li class="mb-2">
-                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                        Estar inscripto en la materia
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                        Tener nota de cursada ≥ 7 (o cursar en modalidad libre)
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                        Haber aprobado las materias correlativas
-                                    </li>
-                                    <li class="mb-0">
-                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                        No estar ya inscripto en otra mesa de la misma materia
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <!-- Columna derecha - Logo y Botones -->
+        <div class="col-lg-4 col-md-5 col-sm-10 text-center mt-5 mt-md-0">
+            <div class="logo-container mb-5">
+                <img src="/static/imagenes/SIMEF.png" alt="SIMEF Logo" style="width: 100%; max-width: 400px; height: auto;">
+            </div>
+            
+            <div class="d-grid gap-3">
+                <button type="button" id="btnVerFinales" class="btn btn-primary btn-lg py-3" disabled
+                    style="font-size: 1.3rem; font-weight: 600; border-radius: 0; background-color: #4d4dff; border: none; box-shadow: 0 4px 10px rgba(77, 77, 255, 0.3);">
+                    <i class="fas fa-search me-3"></i>Ver Finales Disponibles
+                </button>
+                
+                <a href="/" class="btn btn-link btn-lg" 
+                    style="font-size: 1.2rem; font-weight: 500; color: #4d4dff; text-decoration: none;">
+                    Volver
+                </a>
             </div>
         </div>
     </div>
@@ -236,67 +235,80 @@
 {% endif %}
 
 <style>
-/* Custom Styles */
+/* Estilos generales */
+body {
+    overflow-x: hidden;
+}
+
+/* Estilos de campos del formulario */
 .form-control, .form-select {
-    border: 2px solid #e9ecef;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    font-size: 1.1rem;
+    border: none;
+    border-radius: 0;
+    padding: 0.9rem 1.2rem;
+    font-size: 1.05rem;
+    background-color: #ffffff;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
-    background-color: #fff;
 }
 
 .form-control:focus, .form-select:focus {
-    border-color: #198754;
-    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.15);
+    outline: none;
+    box-shadow: 0 4px 10px rgba(77, 77, 255, 0.2);
+    border: 2px solid #4d4dff;
     background-color: #fff;
 }
 
-.input-group-text {
-    border: 2px solid #e9ecef;
-    border-right: none;
-    border-radius: 12px 0 0 12px;
-    padding: 1rem 1.25rem;
-    font-size: 1.1rem;
+.form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
 }
 
-.input-group .form-control, .input-group .form-select {
-    border-left: none;
-    border-radius: 0 12px 12px 0;
-}
-
-.btn-lg {
-    border-radius: 12px;
-    font-weight: 600;
+/* Botón principal */
+.btn-primary {
     transition: all 0.3s ease;
-    border-width: 2px;
 }
 
-.btn-success:hover {
+.btn-primary:hover:not(:disabled) {
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(25, 135, 84, 0.3);
+    box-shadow: 0 6px 15px rgba(77, 77, 255, 0.4) !important;
+    background-color: #3d3dff !important;
 }
 
-.btn-outline-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(108, 117, 125, 0.2);
+.btn-primary:active {
+    transform: translateY(-1px);
 }
 
-.card {
-    border: none;
-    border-radius: 20px;
-    background-color: #fff;
+.btn-primary:disabled {
+    background-color: #999 !important;
+    box-shadow: none !important;
+    cursor: not-allowed;
 }
 
-.modal-content {
-    border-radius: 20px;
+/* Botón volver */
+.btn-link:hover {
+    transform: scale(1.05);
+    transition: all 0.3s ease;
 }
 
+/* Botón outline */
+.btn-outline-secondary {
+    border-radius: 0;
+    border: 2px solid #6c757d;
+}
+
+/* Cards de finales */
 .final-card {
     border: 2px solid #e9ecef;
-    border-radius: 12px;
+    border-radius: 0;
     transition: all 0.3s ease;
     cursor: pointer;
+    background-color: #fff;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .final-card:hover {
@@ -305,18 +317,13 @@
     box-shadow: 0 4px 15px rgba(25, 135, 84, 0.2);
 }
 
-.final-card.selected {
-    border-color: #198754;
-    background-color: #f8fff8;
+.final-card .btn-inscribir {
+    border-radius: 0;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
 }
 
-/* Loading state for button */
-.btn-loading {
-    pointer-events: none;
-    opacity: 0.7;
-}
-
-/* Animation for error states */
+/* Animación de error */
 .shake {
     animation: shake 0.6s;
 }
@@ -327,22 +334,88 @@
     75% { transform: translateX(8px); }
 }
 
-/* Responsive adjustments */
+/* Loading state para el botón */
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* Contenedor del formulario */
+.form-container {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-radius: 0;
+}
+
+/* Badges */
+.badge {
+    border-radius: 0;
+    font-weight: 500;
+    padding: 0.4rem 0.6rem;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-    .display-5 {
-        font-size: 2rem;
-    }
-    
-    .card-body {
+    .form-container {
         padding: 2rem !important;
     }
     
-    .input-group-lg .form-control,
-    .input-group-lg .form-select,
-    .input-group-lg .input-group-text {
-        padding: 0.875rem 1rem;
-        font-size: 1rem;
+    .logo-container img {
+        max-width: 250px !important;
     }
+    
+    h2 {
+        font-size: 1.5rem !important;
+    }
+    
+    .form-label {
+        font-size: 1rem !important;
+    }
+    
+    .btn-lg {
+        font-size: 1.1rem !important;
+        padding: 0.75rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid {
+        padding: 1rem;
+    }
+    
+    .form-container {
+        padding: 1.5rem !important;
+    }
+    
+    .final-card {
+        padding: 0.75rem;
+    }
+    
+    .final-card h6 {
+        font-size: 0.95rem;
+    }
+    
+    .final-card .btn-inscribir {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.8rem;
+    }
+}
+
+/* Etiquetas del formulario */
+.form-label {
+    color: #333;
+    font-weight: 500;
+}
+
+/* Placeholder personalizado */
+.form-control::placeholder,
+.form-select option:first-child {
+    color: #999;
+    font-style: italic;
+}
+
+/* Modal */
+.modal-content {
+    border-radius: 0;
 }
 </style>
 
@@ -424,14 +497,14 @@ $(document).ready(function() {
         
         finales.forEach(function(final) {
             html += `
-                <div class="final-card p-4 mb-3" data-final-id="${final.id}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <h6 class="fw-bold text-dark mb-2">
+                <div class="final-card" data-final-id="${final.id}">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div class="flex-grow-1 mb-2 mb-md-0">
+                            <h6 class="fw-bold text-dark mb-2" style="font-size: 1rem;">
                                 <i class="fas fa-book me-2 text-success"></i>
                                 ${final.materia}
                             </h6>
-                            <p class="text-muted mb-2">
+                            <p class="text-muted mb-2 small">
                                 <i class="fas fa-calendar me-2"></i>
                                 ${final.fecha_llamado}
                             </p>
@@ -446,7 +519,7 @@ $(document).ready(function() {
                         </div>
                         <div class="text-end">
                             <button class="btn btn-success btn-inscribir" data-final-id="${final.id}">
-                                <i class="fas fa-user-plus me-2"></i>Inscribir
+                                <i class="fas fa-user-plus me-1"></i>Inscribir
                             </button>
                         </div>
                     </div>
@@ -515,7 +588,7 @@ $(document).ready(function() {
             data: formData,
             processData: false,
             contentType: false,
-            timeout: 10000, // 10 segundos de timeout
+            timeout: 10000,
             success: function(response) {
                 console.log('Respuesta del servidor:', response);
                 $('#confirmModal').modal('hide');
@@ -553,7 +626,6 @@ $(document).ready(function() {
                 $('#errorModal').modal('show');
             },
             complete: function() {
-                // Siempre resetear el botón al final
                 $('#btnConfirmarInscripcion').prop('disabled', false).html('<i class="fas fa-check me-2"></i>Confirmar');
             }
         });

@@ -11,7 +11,7 @@
             <!-- Header Section -->
             <div class="text-center mb-5">
                 <div class="mb-4">
-                    <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                    <div class="d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px; background-color: #4a5f8f; border-radius: 0;">
                         <i class="fas fa-list-alt text-white" style="font-size: 2rem;"></i>
                     </div>
                 </div>
@@ -23,7 +23,7 @@
             <div class="row mb-4">
                 <div class="col-md-6">
                     <div class="d-flex align-items-center gap-3">
-                        <span class="badge bg-primary fs-6 px-3 py-2">
+                        <span class="badge fs-6 px-3 py-2" style="background-color: #4a5f8f; border-radius: 0;">
                             <i class="fas fa-users me-2"></i>
                             Total: <span id="total-count">{{ finales|length }}</span> inscripciones
                         </span>
@@ -31,10 +31,10 @@
                 </div>
                 <div class="col-md-6">
                     <div class="d-flex justify-content-md-end gap-2">
-                        <button class="btn btn-outline-primary" onclick="exportarDatos()">
+                        <button class="btn" onclick="exportarDatos()" style="background-color: white; color: #4a5f8f; border: 2px solid #4a5f8f; border-radius: 0;">
                             <i class="fas fa-download me-2"></i>Exportar
                         </button>
-                        <button class="btn btn-primary" onclick="actualizarLista()">
+                        <button class="btn" onclick="actualizarLista()" style="background-color: #4a5f8f; color: white; border-radius: 0;">
                             <i class="fas fa-sync-alt me-2"></i>Actualizar
                         </button>
                     </div>
@@ -42,8 +42,8 @@
             </div>
 
             <!-- Main Card -->
-            <div class="card shadow-lg border-0">
-                <div class="card-header bg-primary text-white border-0 py-4">
+            <div class="card shadow-lg border-0" style="border-radius: 0;">
+                <div class="card-header text-white border-0 py-4" style="background-color: #4a5f8f; border-radius: 0;">
                     <div class="row align-items-center">
                         <div class="col">
                             <h4 class="card-title mb-0 fw-bold">
@@ -53,10 +53,10 @@
                         </div>
                         <div class="col-auto">
                             <div class="input-group" style="width: 300px;">
-                                <span class="input-group-text bg-white border-0">
-                                    <i class="fas fa-search text-primary"></i>
+                                <span class="input-group-text bg-white border-0" style="border-radius: 0;">
+                                    <i class="fas fa-search" style="color: #4a5f8f;"></i>
                                 </span>
-                                <input type="text" class="form-control border-0" placeholder="Buscar estudiante o materia..." id="searchInput">
+                                <input type="text" class="form-control border-0" placeholder="Buscar estudiante o materia..." id="searchInput" style="border-radius: 0;">
                             </div>
                         </div>
                     </div>
@@ -70,16 +70,16 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th class="px-4 py-3 fw-bold text-dark">
-                                            <i class="fas fa-book me-2 text-primary"></i>Materia
+                                            <i class="fas fa-book me-2" style="color: #4a5f8f;"></i>Materia
                                         </th>
                                         <th class="px-4 py-3 fw-bold text-dark">
-                                            <i class="fas fa-calendar me-2 text-primary"></i>Fecha del Llamado
+                                            <i class="fas fa-calendar me-2" style="color: #4a5f8f;"></i>Fecha del Llamado
                                         </th>
                                         <th class="px-4 py-3 fw-bold text-dark">
-                                            <i class="fas fa-user-graduate me-2 text-primary"></i>Estudiante
+                                            <i class="fas fa-user-graduate me-2" style="color: #4a5f8f;"></i>Estudiante
                                         </th>
                                         <th class="px-4 py-3 fw-bold text-dark text-center">
-                                            <i class="fas fa-star me-2 text-primary"></i>Calificación
+                                            <i class="fas fa-star me-2" style="color: #4a5f8f;"></i>Calificación
                                         </th>
                                         <th class="px-4 py-3 fw-bold text-dark text-center">Acciones</th>
                                     </tr>
@@ -89,8 +89,8 @@
                                     <tr class="final-row" data-search="{{ final.llamado.materia|lower }} {{ final.usuario.nombre_completo|lower }}">
                                         <td class="px-4 py-3">
                                             <div class="d-flex align-items-center">
-                                                <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                                    <i class="fas fa-book text-primary"></i>
+                                                <div class="d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; background-color: rgba(74, 95, 143, 0.1); border-radius: 0;">
+                                                    <i class="fas fa-book" style="color: #4a5f8f;"></i>
                                                 </div>
                                                 <div>
                                                     <div class="fw-bold text-dark">{{ final.llamado.materia }}</div>
@@ -106,7 +106,7 @@
                                         </td>
                                         <td class="px-4 py-3">
                                             <div class="d-flex align-items-center">
-                                                <div class="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px;">
+                                                <div class="d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; background-color: rgba(40, 167, 69, 0.1); border-radius: 0;">
                                                     <i class="fas fa-user text-success"></i>
                                                 </div>
                                                 <div>
@@ -119,31 +119,31 @@
                                             {% for nota in final.notas %}
                                                 {% if nota.nota_final %}
                                                     {% if nota.nota_final >= 4 %}
-                                                        <span class="badge bg-success fs-6 px-3 py-2">
+                                                        <span class="badge bg-success fs-6 px-3 py-2" style="border-radius: 0;">
                                                             <i class="fas fa-check me-1"></i>{{ nota.nota_final }}
                                                         </span>
                                                     {% else %}
-                                                        <span class="badge bg-danger fs-6 px-3 py-2">
+                                                        <span class="badge bg-danger fs-6 px-3 py-2" style="border-radius: 0;">
                                                             <i class="fas fa-times me-1"></i>{{ nota.nota_final }}
                                                         </span>
                                                     {% endif %}
                                                 {% else %}
-                                                    <span class="badge bg-warning fs-6 px-3 py-2">
+                                                    <span class="badge bg-warning fs-6 px-3 py-2" style="border-radius: 0;">
                                                         <i class="fas fa-clock me-1"></i>Pendiente
                                                     </span>
                                                 {% endif %}
                                             {% empty %}
-                                                <span class="badge bg-warning fs-6 px-3 py-2">
+                                                <span class="badge bg-warning fs-6 px-3 py-2" style="border-radius: 0;">
                                                     <i class="fas fa-clock me-1"></i>Pendiente
                                                 </span>
                                             {% endfor %}
                                         </td>
                                         <td class="px-4 py-3 text-center">
                                             <div class="btn-group" role="group">
-                                                <a href="/cargar_nota_final/{{ final.id }}" class="btn btn-primary btn-sm" title="Cargar Calificación">
+                                                <a href="/cargar_nota_final/{{ final.id }}" class="btn btn-sm" title="Cargar Calificación" style="background-color: #4a5f8f; color: white; border-radius: 0;">
                                                     <i class="fas fa-edit me-1"></i>Calificar
                                                 </a>
-                                                <a href="/eliminar_inscripcion_final/{{ final.id }}" class="btn btn-outline-danger btn-sm" title="Dar de Baja" onclick="return confirm('¿Está seguro de dar de baja esta inscripción?')">
+                                                <a href="/eliminar_inscripcion_final/{{ final.id }}" class="btn btn-sm" title="Dar de Baja" onclick="return confirm('¿Está seguro de dar de baja esta inscripción?')" style="background-color: white; color: #dc3545; border: 2px solid #dc3545; border-radius: 0;">
                                                     <i class="fas fa-user-minus me-1"></i>Dar de Baja
                                                 </a>
                                             </div>
@@ -157,12 +157,12 @@
                         <!-- Mobile Cards -->
                         <div class="d-lg-none p-3" id="mobile-cards">
                             {% for final in finales %}
-                            <div class="card mb-3 border-0 shadow-sm final-card-mobile" data-search="{{ final.llamado.materia|lower }} {{ final.usuario.nombre_completo|lower }}">
+                            <div class="card mb-3 border-0 shadow-sm final-card-mobile" data-search="{{ final.llamado.materia|lower }} {{ final.usuario.nombre_completo|lower }}" style="border-radius: 0;">
                                 <div class="card-body p-4">
                                     <div class="row">
                                         <div class="col-8">
                                             <h6 class="fw-bold text-dark mb-2">
-                                                <i class="fas fa-book text-primary me-2"></i>
+                                                <i class="fas fa-book me-2" style="color: #4a5f8f;"></i>
                                                 {{ final.llamado.materia }}
                                             </h6>
                                             <p class="text-muted mb-2">
@@ -178,23 +178,23 @@
                                             {% for nota in final.notas %}
                                                 {% if nota.nota_final %}
                                                     {% if nota.nota_final >= 4 %}
-                                                        <span class="badge bg-success mb-2 fs-6">{{ nota.nota_final }}</span>
+                                                        <span class="badge bg-success mb-2 fs-6" style="border-radius: 0;">{{ nota.nota_final }}</span>
                                                     {% else %}
-                                                        <span class="badge bg-danger mb-2 fs-6">{{ nota.nota_final }}</span>
+                                                        <span class="badge bg-danger mb-2 fs-6" style="border-radius: 0;">{{ nota.nota_final }}</span>
                                                     {% endif %}
                                                 {% else %}
-                                                    <span class="badge bg-warning mb-2 fs-6">Pendiente</span>
+                                                    <span class="badge bg-warning mb-2 fs-6" style="border-radius: 0;">Pendiente</span>
                                                 {% endif %}
                                             {% empty %}
-                                                <span class="badge bg-warning mb-2 fs-6">Pendiente</span>
+                                                <span class="badge bg-warning mb-2 fs-6" style="border-radius: 0;">Pendiente</span>
                                             {% endfor %}
                                         </div>
                                     </div>
                                     <div class="d-flex gap-2">
-                                        <a href="/cargar_nota_final/{{ final.id }}" class="btn btn-primary btn-sm flex-fill">
+                                        <a href="/cargar_nota_final/{{ final.id }}" class="btn btn-sm flex-fill" style="background-color: #4a5f8f; color: white; border-radius: 0;">
                                             <i class="fas fa-edit me-1"></i>Calificar
                                         </a>
-                                        <a href="/eliminar_inscripcion_final/{{ final.id }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Está seguro?')">
+                                        <a href="/eliminar_inscripcion_final/{{ final.id }}" class="btn btn-sm" onclick="return confirm('¿Está seguro?')" style="background-color: white; color: #dc3545; border: 2px solid #dc3545; border-radius: 0;">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                     </div>
@@ -211,7 +211,7 @@
                             </div>
                             <h5 class="text-muted mb-3">No hay finales disponibles</h5>
                             <p class="text-muted mb-4">No se encontraron inscripciones a exámenes finales en el sistema.</p>
-                            <a href="/inscripcionFinal/" class="btn btn-primary">
+                            <a href="/inscripcionFinal/" class="btn" style="background-color: #4a5f8f; color: white; border-radius: 0;">
                                 <i class="fas fa-plus me-2"></i>Nueva Inscripción
                             </a>
                         </div>
@@ -220,7 +220,7 @@
 
                 <!-- Pagination -->
                 {% if finales %}
-                <div class="card-footer bg-light border-0 py-3">
+                <div class="card-footer bg-light border-0 py-3" style="border-radius: 0;">
                     <div class="row align-items-center">
                         <div class="col-md-6">
                             <small class="text-muted">
@@ -231,15 +231,15 @@
                             <nav aria-label="Paginación" class="d-flex justify-content-md-end justify-content-center mt-3 mt-md-0">
                                 <ul class="pagination pagination-sm mb-0">
                                     <li class="page-item" id="btnAnt">
-                                        <button class="page-link border-0" id="btnAnt_" onclick="paginaAnt()" title="Página anterior">
+                                        <button class="page-link border-0" id="btnAnt_" onclick="paginaAnt()" title="Página anterior" style="border-radius: 0;">
                                             <i class="fas fa-chevron-left"></i>
                                         </button>
                                     </li>
                                     <li class="page-item active">
-                                        <span class="page-link border-0 bg-primary" id="current-page">1</span>
+                                        <span class="page-link border-0" id="current-page" style="background-color: #4a5f8f; border-radius: 0;">1</span>
                                     </li>
                                     <li class="page-item" id="btnSig">
-                                        <button class="page-link border-0" id="btnSig_" onclick="paginaSig()" title="Página siguiente">
+                                        <button class="page-link border-0" id="btnSig_" onclick="paginaSig()" title="Página siguiente" style="border-radius: 0;">
                                             <i class="fas fa-chevron-right"></i>
                                         </button>
                                     </li>
@@ -257,8 +257,8 @@
 <!-- Confirmation Modal -->
 <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-danger text-white border-0">
+        <div class="modal-content border-0 shadow" style="border-radius: 0;">
+            <div class="modal-header bg-danger text-white border-0" style="border-radius: 0;">
                 <h5 class="modal-title" id="confirmModalLabel">
                     <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
                 </h5>
@@ -270,9 +270,9 @@
                 <h6 class="mb-3">¿Está seguro de dar de baja esta inscripción?</h6>
                 <p class="text-muted mb-0">Esta acción no se puede deshacer.</p>
             </div>
-            <div class="modal-footer border-0 justify-content-center">
-                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger px-4" id="confirmDelete">Dar de Baja</button>
+            <div class="modal-footer border-0 justify-content-center" style="border-radius: 0;">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal" style="border-radius: 0;">Cancelar</button>
+                <button type="button" class="btn btn-danger px-4" id="confirmDelete" style="border-radius: 0;">Dar de Baja</button>
             </div>
         </div>
     </div>
@@ -282,12 +282,12 @@
 /* Custom Styles */
 .card {
     border: none;
-    border-radius: 20px;
+    border-radius: 0 !important;
     background-color: #fff;
 }
 
 .card-header {
-    border-radius: 20px 20px 0 0 !important;
+    border-radius: 0 !important;
 }
 
 .table > :not(caption) > * > * {
@@ -302,19 +302,19 @@
 }
 
 .btn-group .btn {
-    border-radius: 8px;
+    border-radius: 0 !important;
     margin: 0 2px;
 }
 
 .btn-sm {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
-    border-radius: 8px;
+    border-radius: 0 !important;
     font-weight: 500;
 }
 
 .final-card-mobile {
-    border-radius: 12px;
+    border-radius: 0 !important;
     transition: all 0.3s ease;
 }
 
@@ -324,49 +324,49 @@
 }
 
 .badge {
-    border-radius: 8px;
+    border-radius: 0 !important;
     font-weight: 500;
 }
 
 .form-control {
-    border-radius: 12px;
+    border-radius: 0 !important;
     border: none;
     background: rgba(255,255,255,0.9);
 }
 
 .form-control:focus {
     background: white;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    box-shadow: 0 0 0 0.25rem rgba(74, 95, 143, 0.15);
 }
 
 .input-group-text {
-    border-radius: 12px 0 0 12px;
+    border-radius: 0 !important;
     border: none;
 }
 
 .pagination .page-link {
-    border-radius: 8px;
+    border-radius: 0 !important;
     margin: 0 2px;
     border: 1px solid #dee2e6;
     color: #495057;
 }
 
 .pagination .page-item.active .page-link {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+    background-color: #4a5f8f !important;
+    border-color: #4a5f8f !important;
 }
 
 .pagination .page-link:hover {
     background-color: #f8f9fa;
-    border-color: #0d6efd;
-    color: #0d6efd;
+    border-color: #4a5f8f;
+    color: #4a5f8f;
 }
 
 /* Search highlighting */
 .highlight {
     background-color: #fff3cd;
     padding: 2px 4px;
-    border-radius: 4px;
+    border-radius: 0;
 }
 
 /* Hidden rows */
