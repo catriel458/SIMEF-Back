@@ -2022,7 +2022,67 @@ def render_to_pdf(template_src, context_dict={}):
         return HttpResponse(result.getvalue(), content_type='application/pdf')
     return None
 
-@login_required
+def numero_a_letras(numero):
+    """
+    Convierte un número decimal a su representación en letras en español
+    """
+    unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve']
+    decenas = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa']
+    especiales = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve']
+    
+    # Separar parte entera y decimal
+    partes = str(numero).split('.')
+    parte_entera = int(partes[0])
+    parte_decimal = int(partes[1]) if len(partes) > 1 else 0
+    
+    # Convertir parte entera
+    if parte_entera == 0:
+        texto_entero = 'cero'
+    elif parte_entera == 100:
+        texto_entero = 'cien'
+    elif parte_entera < 10:
+        texto_entero = unidades[parte_entera]
+    elif parte_entera < 20:
+        texto_entero = especiales[parte_entera - 10]
+    elif parte_entera < 30:
+        if parte_entera == 20:
+            texto_entero = 'veinte'
+        else:
+            texto_entero = 'veinti' + unidades[parte_entera - 20]
+    elif parte_entera < 100:
+        decena = parte_entera // 10
+        unidad = parte_entera % 10
+        if unidad == 0:
+            texto_entero = decenas[decena]
+        else:
+            texto_entero = decenas[decena] + ' y ' + unidades[unidad]
+    else:
+        texto_entero = str(parte_entera)
+    
+    # Convertir parte decimal
+    if parte_decimal < 10:
+        texto_decimal = 'cero ' + unidades[parte_decimal] if parte_decimal > 0 else 'cero'
+    elif parte_decimal < 20:
+        texto_decimal = especiales[parte_decimal - 10]
+    elif parte_decimal < 30:
+        if parte_decimal == 20:
+            texto_decimal = 'veinte'
+        else:
+            texto_decimal = 'veinti' + unidades[parte_decimal - 20]
+    elif parte_decimal < 100:
+        decena = parte_decimal // 10
+        unidad = parte_decimal % 10
+        if unidad == 0:
+            texto_decimal = decenas[decena]
+        else:
+            texto_decimal = decenas[decena] + ' y ' + unidades[unidad]
+    else:
+        texto_decimal = str(parte_decimal)
+    
+    # Capitalizar primera letra
+    resultado = texto_entero.capitalize() + ' con ' + texto_decimal.capitalize()
+    return resultado
+
 @login_required
 def reporte_estudiante_descarga(request, usuario_id):
     """
@@ -2064,17 +2124,22 @@ def reporte_estudiante_descarga(request, usuario_id):
     }
     
     materias_por_anio = {}
+    total_materias = 0
+    materias_aprobadas = 0
     
     for anio, lista_materias in materias_hardcoded.items():
         materias_por_anio[anio] = []
         
         for nombre_materia in lista_materias:
+            total_materias += 1
+            
             # Valores por defecto
             nota_cursada = "-"
             nota_final = "-"
             calif_cursada = "-"
             calif_final = "-"
             fecha_cursada = "-"
+            aprobada = False
             
             # Buscar si existe la materia en la base de datos y si el estudiante está inscrito
             try:
@@ -2107,6 +2172,11 @@ def reporte_estudiante_descarga(request, usuario_id):
                                     2: "Dos", 1: "Uno"
                                 }
                                 calif_final = numeros_letras.get(nota_final, "-")
+                                
+                                # Si tiene nota final >= 4, la materia está aprobada
+                                if nota_final >= 4:
+                                    aprobada = True
+                                    materias_aprobadas += 1
                             except (ValueError, TypeError):
                                 nota_final = "-"
                                 calif_final = "-"
@@ -2114,6 +2184,11 @@ def reporte_estudiante_descarga(request, usuario_id):
                         # Procesar fecha
                         if inscripcion.ciclo_lectivo not in [None, '', 'None', 'none']:
                             fecha_cursada = str(inscripcion.ciclo_lectivo)
+                        
+                        # También considerar aprobada si el campo aprobada está en True
+                        if inscripcion.aprobada and not aprobada:
+                            aprobada = True
+                            materias_aprobadas += 1
                             
                     except usuarios_materia.DoesNotExist:
                         pass  # Mantener valores por defecto con guiones
@@ -2129,10 +2204,18 @@ def reporte_estudiante_descarga(request, usuario_id):
                 'fecha': fecha_cursada
             })
     
+    # Calcular porcentaje
+    porcentaje_aprobadas = round((materias_aprobadas / total_materias * 100), 2) if total_materias > 0 else 0
+    porcentaje_en_letras = numero_a_letras(porcentaje_aprobadas)
+    
     context = {
         'usuario': usuario,
         'materias_por_anio': materias_por_anio,
-        'fecha_actual': now().strftime('%d/%m/%Y')
+        'fecha_actual': now().strftime('%d/%m/%Y'),
+        'total_materias': total_materias,
+        'materias_aprobadas': materias_aprobadas,
+        'porcentaje_aprobadas': porcentaje_aprobadas,
+        'porcentaje_en_letras': porcentaje_en_letras
     }
     
     pdf = render_to_pdf('reportes/constancia_estudiante.html', context)
@@ -2187,17 +2270,22 @@ def reporte_estudiante_html(request, usuario_id):
     }
     
     materias_por_anio = {}
+    total_materias = 0
+    materias_aprobadas = 0
     
     for anio, lista_materias in materias_hardcoded.items():
         materias_por_anio[anio] = []
         
         for nombre_materia in lista_materias:
+            total_materias += 1
+            
             # Valores por defecto
             nota_cursada = "-"
             nota_final = "-"
             calif_cursada = "-"
             calif_final = "-"
             fecha_cursada = "-"
+            aprobada = False
             
             # Buscar si existe la materia en la base de datos y si el estudiante está inscrito
             try:
@@ -2230,6 +2318,11 @@ def reporte_estudiante_html(request, usuario_id):
                                     2: "Dos", 1: "Uno"
                                 }
                                 calif_final = numeros_letras.get(nota_final, "-")
+                                
+                                # Si tiene nota final >= 4, la materia está aprobada
+                                if nota_final >= 4:
+                                    aprobada = True
+                                    materias_aprobadas += 1
                             except (ValueError, TypeError):
                                 nota_final = "-"
                                 calif_final = "-"
@@ -2237,6 +2330,11 @@ def reporte_estudiante_html(request, usuario_id):
                         # Procesar fecha
                         if inscripcion.ciclo_lectivo not in [None, '', 'None', 'none']:
                             fecha_cursada = str(inscripcion.ciclo_lectivo)
+                        
+                        # También considerar aprobada si el campo aprobada está en True
+                        if inscripcion.aprobada and not aprobada:
+                            aprobada = True
+                            materias_aprobadas += 1
                             
                     except usuarios_materia.DoesNotExist:
                         pass  # Mantener valores por defecto con guiones
@@ -2252,10 +2350,18 @@ def reporte_estudiante_html(request, usuario_id):
                 'fecha': fecha_cursada
             })
     
+    # Calcular porcentaje
+    porcentaje_aprobadas = round((materias_aprobadas / total_materias * 100), 2) if total_materias > 0 else 0
+    porcentaje_en_letras = numero_a_letras(porcentaje_aprobadas)
+    
     context = {
         'usuario': usuario,
         'materias_por_anio': materias_por_anio,
-        'fecha_actual': now().strftime('%d/%m/%Y')
+        'fecha_actual': now().strftime('%d/%m/%Y'),
+        'total_materias': total_materias,
+        'materias_aprobadas': materias_aprobadas,
+        'porcentaje_aprobadas': porcentaje_aprobadas,
+        'porcentaje_en_letras': porcentaje_en_letras
     }
     
     return render(request, 'reportes/constancia_estudiante.html', context)
