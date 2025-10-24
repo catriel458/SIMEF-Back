@@ -2030,12 +2030,10 @@ def numero_a_letras(numero):
     decenas = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa']
     especiales = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve']
     
-    # Separar parte entera y decimal
     partes = str(numero).split('.')
     parte_entera = int(partes[0])
     parte_decimal = int(partes[1]) if len(partes) > 1 else 0
     
-    # Convertir parte entera
     if parte_entera == 0:
         texto_entero = 'cero'
     elif parte_entera == 100:
@@ -2059,7 +2057,6 @@ def numero_a_letras(numero):
     else:
         texto_entero = str(parte_entera)
     
-    # Convertir parte decimal
     if parte_decimal < 10:
         texto_decimal = 'cero ' + unidades[parte_decimal] if parte_decimal > 0 else 'cero'
     elif parte_decimal < 20:
@@ -2079,23 +2076,58 @@ def numero_a_letras(numero):
     else:
         texto_decimal = str(parte_decimal)
     
-    # Capitalizar primera letra
     resultado = texto_entero.capitalize() + ' con ' + texto_decimal.capitalize()
     return resultado
+
 
 @login_required
 def reporte_estudiante_descarga(request, usuario_id):
     """
     Genera un PDF con las materias y notas del estudiante para descarga
+    usando una API externa
     """
     usuario = get_object_or_404(Usuario, id=usuario_id)
     
     if not usuario.es_estudiante():
         return HttpResponse("Este reporte solo está disponible para estudiantes", status=403)
     
-    # Materias hardcodeadas de Analista de Sistemas
+    # Obtener el contexto (mismo código que antes)
+    context = obtener_contexto_reporte(usuario)
+    
+    # Renderizar HTML
+    html_string = render_to_string('reportes/constancia_estudiante.html', context)
+    
+    # Usar API de conversión HTML a PDF (ejemplo con api.html2pdf.app)
+    try:
+        api_response = requests.post(
+            'https://api.html2pdf.app/v1/generate',
+            json={
+                'html': html_string,
+                'options': {
+                    'format': 'A4',
+                    'margin': {'top': '1.5cm', 'right': '1.5cm', 'bottom': '1.5cm', 'left': '1.5cm'}
+                }
+            },
+            timeout=30
+        )
+        
+        if api_response.status_code == 200:
+            response = HttpResponse(api_response.content, content_type='application/pdf')
+            nombre_archivo = f"constancia_{usuario.nombre_completo or usuario.email}.pdf".replace(" ", "_")
+            response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+            return response
+    except Exception as e:
+        pass
+    
+    return HttpResponse("Error al generar el PDF", status=500)
+
+
+def obtener_contexto_reporte(usuario):
+    """
+    Función auxiliar para obtener el contexto del reporte
+    """
     materias_hardcoded = {
-        1: [  # 1er Año
+        1: [
             "Ciencia, Tecnología y Sociedad",
             "Inglés I",
             "Álgebra",
@@ -2103,7 +2135,7 @@ def reporte_estudiante_descarga(request, usuario_id):
             "Sistemas y Organizaciones",
             "Arquitectura de Computadoras",
         ],
-        2: [  # 2do Año
+        2: [
             "Inglés II",
             "Probabilidad y Estadística II",
             "Estadística",
@@ -2112,7 +2144,7 @@ def reporte_estudiante_descarga(request, usuario_id):
             "Base de Datos",
             "Prácticas Profesionalizantes II",
         ],
-        3: [  # 3er Año
+        3: [
             "Inglés III",
             "Aspectos Legales de la Profesión",
             "Seminario de Actualización",
@@ -2133,7 +2165,6 @@ def reporte_estudiante_descarga(request, usuario_id):
         for nombre_materia in lista_materias:
             total_materias += 1
             
-            # Valores por defecto
             nota_cursada = "-"
             nota_final = "-"
             calif_cursada = "-"
@@ -2141,14 +2172,12 @@ def reporte_estudiante_descarga(request, usuario_id):
             fecha_cursada = "-"
             aprobada = False
             
-            # Buscar si existe la materia en la base de datos y si el estudiante está inscrito
             try:
                 materia = Materia.objects.filter(nombre_materia__iexact=nombre_materia).first()
                 if materia:
                     try:
                         inscripcion = usuarios_materia.objects.get(usuario=usuario, materia=materia)
                         
-                        # Procesar nota de cursada
                         if inscripcion.nota_cursada not in [None, '', 'None', 'none']:
                             try:
                                 nota_cursada = int(float(inscripcion.nota_cursada))
@@ -2162,7 +2191,6 @@ def reporte_estudiante_descarga(request, usuario_id):
                                 nota_cursada = "-"
                                 calif_cursada = "-"
                         
-                        # Procesar nota final
                         if inscripcion.nota_final not in [None, '', 'None', 'none']:
                             try:
                                 nota_final = int(float(inscripcion.nota_final))
@@ -2173,7 +2201,6 @@ def reporte_estudiante_descarga(request, usuario_id):
                                 }
                                 calif_final = numeros_letras.get(nota_final, "-")
                                 
-                                # Si tiene nota final >= 4, la materia está aprobada
                                 if nota_final >= 4:
                                     aprobada = True
                                     materias_aprobadas += 1
@@ -2181,19 +2208,17 @@ def reporte_estudiante_descarga(request, usuario_id):
                                 nota_final = "-"
                                 calif_final = "-"
                         
-                        # Procesar fecha
                         if inscripcion.ciclo_lectivo not in [None, '', 'None', 'none']:
                             fecha_cursada = str(inscripcion.ciclo_lectivo)
                         
-                        # También considerar aprobada si el campo aprobada está en True
                         if inscripcion.aprobada and not aprobada:
                             aprobada = True
                             materias_aprobadas += 1
                             
                     except usuarios_materia.DoesNotExist:
-                        pass  # Mantener valores por defecto con guiones
+                        pass
             except Exception:
-                pass  # Si hay cualquier error, mantener valores por defecto
+                pass
             
             materias_por_anio[anio].append({
                 'nombre': nombre_materia,
@@ -2204,11 +2229,10 @@ def reporte_estudiante_descarga(request, usuario_id):
                 'fecha': fecha_cursada
             })
     
-    # Calcular porcentaje
     porcentaje_aprobadas = round((materias_aprobadas / total_materias * 100), 2) if total_materias > 0 else 0
     porcentaje_en_letras = numero_a_letras(porcentaje_aprobadas)
     
-    context = {
+    return {
         'usuario': usuario,
         'materias_por_anio': materias_por_anio,
         'fecha_actual': now().strftime('%d/%m/%Y'),
@@ -2217,16 +2241,6 @@ def reporte_estudiante_descarga(request, usuario_id):
         'porcentaje_aprobadas': porcentaje_aprobadas,
         'porcentaje_en_letras': porcentaje_en_letras
     }
-    
-    pdf = render_to_pdf('reportes/constancia_estudiante.html', context)
-    
-    if pdf:
-        response = HttpResponse(pdf, content_type='application/pdf')
-        nombre_archivo = f"constancia_{usuario.nombre_completo or usuario.email}.pdf".replace(" ", "_")
-        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
-        return response
-    
-    return HttpResponse("Error al generar el PDF", status=500)
 
 
 @login_required
@@ -2239,129 +2253,6 @@ def reporte_estudiante_html(request, usuario_id):
     if not usuario.es_estudiante():
         return HttpResponse("Este reporte solo está disponible para estudiantes", status=403)
     
-    # Materias hardcodeadas de Analista de Sistemas
-    materias_hardcoded = {
-        1: [  # 1er Año
-            "Ciencia, Tecnología y Sociedad",
-            "Inglés I",
-            "Álgebra",
-            "Algoritmo y Estructura de Datos I",
-            "Sistemas y Organizaciones",
-            "Arquitectura de Computadoras",
-        ],
-        2: [  # 2do Año
-            "Inglés II",
-            "Probabilidad y Estadística II",
-            "Estadística",
-            "Algoritmo y Estructura de Datos II",
-            "Sistemas Operativos",
-            "Base de Datos",
-            "Prácticas Profesionalizantes II",
-        ],
-        3: [  # 3er Año
-            "Inglés III",
-            "Aspectos Legales de la Profesión",
-            "Seminario de Actualización",
-            "Redes y Comunicaciones",
-            "Ingeniería de Software",
-            "Algoritmo y Estructura de Datos III",
-            "Prácticas Profesionalizantes III",
-        ]
-    }
-    
-    materias_por_anio = {}
-    total_materias = 0
-    materias_aprobadas = 0
-    
-    for anio, lista_materias in materias_hardcoded.items():
-        materias_por_anio[anio] = []
-        
-        for nombre_materia in lista_materias:
-            total_materias += 1
-            
-            # Valores por defecto
-            nota_cursada = "-"
-            nota_final = "-"
-            calif_cursada = "-"
-            calif_final = "-"
-            fecha_cursada = "-"
-            aprobada = False
-            
-            # Buscar si existe la materia en la base de datos y si el estudiante está inscrito
-            try:
-                materia = Materia.objects.filter(nombre_materia__iexact=nombre_materia).first()
-                if materia:
-                    try:
-                        inscripcion = usuarios_materia.objects.get(usuario=usuario, materia=materia)
-                        
-                        # Procesar nota de cursada
-                        if inscripcion.nota_cursada not in [None, '', 'None', 'none']:
-                            try:
-                                nota_cursada = int(float(inscripcion.nota_cursada))
-                                numeros_letras = {
-                                    10: "Diez", 9: "Nueve", 8: "Ocho", 7: "Siete",
-                                    6: "Seis", 5: "Cinco", 4: "Cuatro", 3: "Tres",
-                                    2: "Dos", 1: "Uno"
-                                }
-                                calif_cursada = numeros_letras.get(nota_cursada, "-")
-                            except (ValueError, TypeError):
-                                nota_cursada = "-"
-                                calif_cursada = "-"
-                        
-                        # Procesar nota final
-                        if inscripcion.nota_final not in [None, '', 'None', 'none']:
-                            try:
-                                nota_final = int(float(inscripcion.nota_final))
-                                numeros_letras = {
-                                    10: "Diez", 9: "Nueve", 8: "Ocho", 7: "Siete",
-                                    6: "Seis", 5: "Cinco", 4: "Cuatro", 3: "Tres",
-                                    2: "Dos", 1: "Uno"
-                                }
-                                calif_final = numeros_letras.get(nota_final, "-")
-                                
-                                # Si tiene nota final >= 4, la materia está aprobada
-                                if nota_final >= 4:
-                                    aprobada = True
-                                    materias_aprobadas += 1
-                            except (ValueError, TypeError):
-                                nota_final = "-"
-                                calif_final = "-"
-                        
-                        # Procesar fecha
-                        if inscripcion.ciclo_lectivo not in [None, '', 'None', 'none']:
-                            fecha_cursada = str(inscripcion.ciclo_lectivo)
-                        
-                        # También considerar aprobada si el campo aprobada está en True
-                        if inscripcion.aprobada and not aprobada:
-                            aprobada = True
-                            materias_aprobadas += 1
-                            
-                    except usuarios_materia.DoesNotExist:
-                        pass  # Mantener valores por defecto con guiones
-            except Exception:
-                pass  # Si hay cualquier error, mantener valores por defecto
-            
-            materias_por_anio[anio].append({
-                'nombre': nombre_materia,
-                'nota_cursada': nota_cursada,
-                'nota_final': nota_final,
-                'calif_cursada': calif_cursada,
-                'calif_final': calif_final,
-                'fecha': fecha_cursada
-            })
-    
-    # Calcular porcentaje
-    porcentaje_aprobadas = round((materias_aprobadas / total_materias * 100), 2) if total_materias > 0 else 0
-    porcentaje_en_letras = numero_a_letras(porcentaje_aprobadas)
-    
-    context = {
-        'usuario': usuario,
-        'materias_por_anio': materias_por_anio,
-        'fecha_actual': now().strftime('%d/%m/%Y'),
-        'total_materias': total_materias,
-        'materias_aprobadas': materias_aprobadas,
-        'porcentaje_aprobadas': porcentaje_aprobadas,
-        'porcentaje_en_letras': porcentaje_en_letras
-    }
+    context = obtener_contexto_reporte(usuario)
     
     return render(request, 'reportes/constancia_estudiante.html', context)
