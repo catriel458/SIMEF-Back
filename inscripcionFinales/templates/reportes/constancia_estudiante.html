@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Constancia Académica</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9pt;
+            line-height: 1.2;
+            color: #000;
+        }
+        
+        .container {
+            width: 100%;
+            padding: 10px;
+        }
+        
+        .header {
+            text-align: right;
+            margin-bottom: 20px;
+            font-size: 8pt;
+            line-height: 1.4;
+        }
+        
+        .header strong {
+            display: block;
+        }
+        
+        .titulo-constancia {
+            text-align: center;
+            font-weight: bold;
+            margin: 15px 0;
+            font-size: 9pt;
+            text-decoration: underline;
+            line-height: 1.4;
+        }
+        
+        .datos-estudiante {
+            margin: 15px 0;
+            line-height: 1.5;
+            text-align: justify;
+            font-size: 8.5pt;
+        }
+        
+        .curso-section {
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+        
+        .curso-titulo {
+            background-color: #f0f0f0;
+            border: 1px solid #000;
+            padding: 4px 8px;
+            font-weight: bold;
+            font-size: 9pt;
+            margin-bottom: 0;
+        }
+        
+        .tabla-materias {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+            margin-top: 0;
+        }
+        
+        .tabla-materias th {
+            background-color: #ffffff;
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 7.5pt;
+            line-height: 1.2;
+        }
+        
+        .tabla-materias td {
+            border: 1px solid #000;
+            padding: 3px 4px;
+            text-align: center;
+            font-size: 8pt;
+        }
+        
+        .tabla-materias td.materia-nombre {
+            text-align: left;
+            padding-left: 6px;
+        }
+        
+        .nota-pie {
+            margin-top: 20px;
+            font-size: 7.5pt;
+            font-style: italic;
+            text-align: justify;
+            line-height: 1.4;
+        }
+        
+        .firma-section {
+            margin-top: 40px;
+            width: 100%;
+        }
+        
+        .firma-container {
+            width: 100%;
+            display: table;
+            margin-top: 30px;
+        }
+        
+        .firma-item {
+            display: table-cell;
+            width: 50%;
+            text-align: center;
+            vertical-align: bottom;
+            padding: 0 20px;
+        }
+        
+        .firma-linea {
+            border-top: 1px solid #000;
+            margin: 0 auto;
+            width: 80%;
+            margin-top: 25px;
+        }
+        
+        .firma-texto {
+            margin-top: 3px;
+            font-size: 8pt;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <strong>DIRECCIÓN DE EDUCACIÓN SUPERIOR</strong>
+            <strong>INSTITUTO SUPERIOR DE FORMACIÓN DOCENTE Y TÉCNICA Nº 210</strong>
+        </div>
+        
+        <!-- Título -->
+        <div class="titulo-constancia">
+            CONSTANCIA DEL PORCENTAJE DE PERSPECTIVAS, ESPACIOS Y ÁREAS DE CONOCIMIENTO<br>
+            APROBADAS (A LA FECHA)
+        </div>
+        
+        <!-- Datos del estudiante -->
+        <div class="datos-estudiante">
+            <p>
+                Se deja constancia que el/la estudiante 
+                <strong>{{ usuario.nombre_completo|default:"___________________" }}</strong>, 
+                DNI: <strong>{{ usuario.dni|default:"_____________" }}</strong>, 
+                alumno regular de este establecimiento en la 
+                <strong>Tecnicatura Superior en Análisis de Sistemas (TESIS)</strong>
+                {% if carreras.count > 0 %}
+                    {% for carrera in carreras %}
+                        {% if not forloop.first %} y/o <strong>{{ carrera.nombre_carrera }}</strong>{% endif %}
+                    {% endfor %}
+                {% endif %}, 
+                ha obtenido las siguientes calificaciones a la fecha del presente:
+            </p>
+        </div>
+        
+        <!-- Materias por año -->
+        {% for anio, materias in materias_por_anio.items %}
+        <div class="curso-section">
+            <div class="curso-titulo">
+                {% if anio == 1 %}1er Año
+                {% elif anio == 2 %}2do Año
+                {% elif anio == 3 %}3er Año
+                {% else %}{{ anio }}º Año
+                {% endif %}
+            </div>
+            
+            <table class="tabla-materias">
+                <thead>
+                    <tr>
+                        <th style="width: 48%;">Asignaturas</th>
+                        <th style="width: 17%;" colspan="2">Calificación</th>
+                        <th style="width: 18%;">Fecha</th>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <th style="width: 8%;">En Nº</th>
+                        <th style="width: 9%;">En Letras</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for materia in materias %}
+                    <tr>
+                        <td class="materia-nombre">{{ materia.nombre }}</td>
+                        <td>{{ materia.nota_cursada }}</td>
+                        <td>{{ materia.calif_cursada }}</td>
+                        <td>{{ materia.fecha }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% empty %}
+        <div class="curso-section">
+            <p style="text-align: center; margin: 20px 0;">No hay materias registradas para este estudiante.</p>
+        </div>
+        {% endfor %}
+        
+        <!-- Nota al pie -->
+        <div class="nota-pie">
+            <p>
+                A pedido del interesado y al solo efecto de ser presentado ante las autoridades que estime corresponder, 
+                se extiende la presente constancia, en la ciudad de La Plata en el día de hoy 
+                <strong>{{ fecha_actual }}</strong>.
+            </p>
+        </div>
+        
+        <!-- Firmas -->
+        <div class="firma-section">
+            <div class="firma-container">
+                <div class="firma-item">
+                    <p class="firma-texto">Sello del establecimiento</p>
+                </div>
+                <div class="firma-item">
+                    <div class="firma-linea"></div>
+                    <p class="firma-texto">Firma y sello aclaratorio</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -125,4 +125,6 @@ urlpatterns = [
     path('validar-inscripcion/<int:usuario_id>/<int:materia_id>/', validar_inscripcion_final, name='validar_inscripcion_final'),
     
 
+    path('reporte/<int:usuario_id>', reporte_estudiante_descarga, name='reporte_estudiante'),
+    path('reporte_html/<int:usuario_id>', reporte_estudiante_html, name='reporte_estudiante_html'),
 ]

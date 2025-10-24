@@ -43,8 +43,19 @@ from django.contrib.auth.forms import SetPasswordForm  # ← Nuevo
 from django.contrib.auth import login    
 
 #from weasyprint import HTML, CSS
+from xhtml2pdf import pisa
+from django.utils.timezone import now
+from django.template.loader import render_to_string
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from django.contrib.auth.decorators import login_required
+from django.utils.timezone import now
+from xhtml2pdf import pisa
+from io import BytesIO
+from .models import Usuario, usuarios_materia, Materia, Carrera
 
-
+# ... aquí van tus otros imports existentes
 
 class HomePageView(TemplateView):
     template_name = 'index.html'
@@ -1542,171 +1553,6 @@ def reporte_usuario_materias(request, usuario_id):
 
 
 
-def reporte_estudiante_descarga(request, usuario_id):
-    from xhtml2pdf import pisa
-    from django.template.loader import render_to_string
-    from django.http import HttpResponse
-    from io import BytesIO
-    import os
-    from django.conf import settings
-    
-    # Obtener el usuario
-    usuario = get_object_or_404(Usuario, id=usuario_id)
-    
-    # NUEVA VALIDACIÓN: Verificar que el usuario sea estudiante
-    if usuario.rol != 'Estudiante':
-        messages.error(request, 'Los reportes solo están disponibles para estudiantes.')
-        return redirect('list_user')  # o la URL que prefieras
-    hoy = timezone.now().date()
-    
-    # Obtener la carrera del usuario (primera carrera si tiene múltiples)
-    carrera = usuario.carrera.first()
-    if not carrera:
-        # Si no tiene carrera, usar la primera carrera disponible en el sistema
-        carrera = Carrera.objects.first()
-        if not carrera:
-            return HttpResponse("No hay carreras registradas en el sistema", status=404)
-    
-    # Contar materias aprobadas del usuario
-    materias_aprobadas = usuarios_materia.objects.filter(
-        usuario_id=usuario_id, 
-        aprobada=True
-    ).count()
-    
-    # Obtener todas las materias de la carrera del usuario
-    materias_de_carrera = Materia.objects.filter(carrera=carrera)
-    
-    # Prefetch para optimizar las consultas
-    usuarios_materia_prefetch = Prefetch(
-        'usuarios_materia_set',
-        queryset=usuarios_materia.objects.filter(usuario_id=usuario_id),
-        to_attr='usuario_materia'
-    )
-    
-    # Obtener materias por año de la carrera específica del usuario
-    materias_primero = materias_de_carrera.filter(anio=1).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
-    materias_segundo = materias_de_carrera.filter(anio=2).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
-    materias_tercero = materias_de_carrera.filter(anio=3).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
-    materias_cuarto = materias_de_carrera.filter(anio=4).prefetch_related(usuarios_materia_prefetch).order_by('nombre_materia')
-    
-    # Contar total de materias de la carrera del usuario
-    cant_materias = materias_de_carrera.count()
-    
-    # Función para procesar materias y sus notas
-    def procesar_materias(materias):
-        return [
-            {
-                'materia': materia,
-                'nota_final': next((um.nota_final for um in materia.usuario_materia if um.usuario_id == usuario_id), "-"),
-                'nota_texto': numero_a_texto(next((um.nota_final for um in materia.usuario_materia if um.usuario_id == usuario_id), "-"))
-            }
-            for materia in materias
-        ]
-    
-    # Procesar materias por año
-    materias_primero_con_notas = procesar_materias(materias_primero)
-    materias_segundo_con_notas = procesar_materias(materias_segundo)
-    materias_tercero_con_notas = procesar_materias(materias_tercero)
-    materias_cuarto_con_notas = procesar_materias(materias_cuarto)
-    
-    # Calcular porcentaje de avance
-    if cant_materias > 0:
-        porcentaje = round((materias_aprobadas / cant_materias) * 100, 2)
-    else:
-        porcentaje = 0
-    
-    # Obtener datos del instituto si existe
-    instituto = carrera.instituto if carrera.instituto else None
-    
-    context = {
-        'usuario': usuario,
-        'carrera': carrera,
-        'instituto': instituto,
-        'porcentaje_aprobado': porcentaje,
-        'materias_aprobadas': materias_aprobadas,
-        'total_materias': cant_materias,
-        'materias_primero': materias_primero_con_notas,
-        'materias_segundo': materias_segundo_con_notas,
-        'materias_tercero': materias_tercero_con_notas,
-        'materias_cuarto': materias_cuarto_con_notas,
-        'fecha': hoy
-    }
-    
-    # Renderizar template a HTML
-    html_string = render_to_string('registration/reporte_estudiante_pdf.html', context, request=request)
-    
-    # Crear archivo PDF
-    result = BytesIO()
-    
-    # Función para resolver URLs de archivos estáticos
-    def link_callback(uri, rel):
-        """
-        Convert HTML URIs to absolute system paths so xhtml2pdf can access those resources
-        """
-        try:
-            if uri.startswith(settings.MEDIA_URL):
-                path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ""))
-            elif uri.startswith(settings.STATIC_URL):
-                path = os.path.join(settings.STATIC_ROOT, uri.replace(settings.STATIC_URL, ""))
-                if not os.path.exists(path):
-                    path = os.path.join(settings.BASE_DIR, 'static', uri.replace(settings.STATIC_URL, ""))
-            else:
-                path = None
-            
-            # Verificar que el archivo existe
-            if path and os.path.isfile(path):
-                return path
-        except:
-            pass
-        return None
-    
-    # Generar PDF
-    try:
-        pdf_status = pisa.pisaDocument(
-            BytesIO(html_string.encode("UTF-8")), 
-            result, 
-            link_callback=link_callback,
-            encoding='UTF-8'
-        )
-        
-        # Verificar si se generó correctamente
-        if not pdf_status.err:
-            # Crear nombre del archivo de manera segura
-            nombre_usuario = usuario.nombre_completo or usuario.email or f"usuario_{usuario.id}"
-            nombre_limpio = nombre_usuario.replace(' ', '_').replace(',', '').replace('.', '_').replace('@', '_')
-            filename = f"constancia_{nombre_limpio}.pdf"
-            
-            # Obtener el contenido del PDF
-            pdf_content = result.getvalue()
-            
-            # Crear respuesta HTTP forzando descarga directa
-            response = HttpResponse(pdf_content, content_type='application/force-download')
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            response['Content-Length'] = len(pdf_content)
-            response['Content-Transfer-Encoding'] = 'binary'
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
-            response['Accept-Ranges'] = 'bytes'
-            response['X-Content-Type-Options'] = 'nosniff'
-            response['X-Download-Options'] = 'noopen'
-            response['Content-Description'] = 'File Transfer'
-            
-            # Cerrar el buffer
-            result.close()
-            
-            return response
-        else:
-            # Si hay error en la generación del PDF
-            result.close()
-            error_msg = f"Error al generar el PDF: {pdf_status.err}"
-            return HttpResponse(error_msg, status=500, content_type='text/plain')
-            
-    except Exception as e:
-        # Manejo de errores generales
-        result.close()
-        error_msg = f"Error inesperado al generar el PDF: {str(e)}"
-        return HttpResponse(error_msg, status=500, content_type='text/plain')
 
 
 # También necesitas agregar esta función auxiliar si no existe:
@@ -2163,3 +2009,253 @@ def imprimir_mesas_finales_pdf(request):
     except Exception as e:
         result.close()
         return HttpResponse(f"Error inesperado al generar el PDF: {str(e)}", status=500)
+    
+    
+def render_to_pdf(template_src, context_dict={}):
+    """
+    Función auxiliar para convertir HTML a PDF
+    """
+    template = render_to_string(template_src, context_dict)
+    result = BytesIO()
+    pdf = pisa.pisaDocument(BytesIO(template.encode("UTF-8")), result)
+    if not pdf.err:
+        return HttpResponse(result.getvalue(), content_type='application/pdf')
+    return None
+
+@login_required
+@login_required
+def reporte_estudiante_descarga(request, usuario_id):
+    """
+    Genera un PDF con las materias y notas del estudiante para descarga
+    """
+    usuario = get_object_or_404(Usuario, id=usuario_id)
+    
+    if not usuario.es_estudiante():
+        return HttpResponse("Este reporte solo está disponible para estudiantes", status=403)
+    
+    # Materias hardcodeadas de Analista de Sistemas
+    materias_hardcoded = {
+        1: [  # 1er Año
+            "Ciencia, Tecnología y Sociedad",
+            "Inglés I",
+            "Álgebra",
+            "Algoritmo y Estructura de Datos I",
+            "Sistemas y Organizaciones",
+            "Arquitectura de Computadoras",
+        ],
+        2: [  # 2do Año
+            "Inglés II",
+            "Probabilidad y Estadística II",
+            "Estadística",
+            "Algoritmo y Estructura de Datos II",
+            "Sistemas Operativos",
+            "Base de Datos",
+            "Prácticas Profesionalizantes II",
+        ],
+        3: [  # 3er Año
+            "Inglés III",
+            "Aspectos Legales de la Profesión",
+            "Seminario de Actualización",
+            "Redes y Comunicaciones",
+            "Ingeniería de Software",
+            "Algoritmo y Estructura de Datos III",
+            "Prácticas Profesionalizantes III",
+        ]
+    }
+    
+    materias_por_anio = {}
+    
+    for anio, lista_materias in materias_hardcoded.items():
+        materias_por_anio[anio] = []
+        
+        for nombre_materia in lista_materias:
+            # Valores por defecto
+            nota_cursada = "-"
+            nota_final = "-"
+            calif_cursada = "-"
+            calif_final = "-"
+            fecha_cursada = "-"
+            
+            # Buscar si existe la materia en la base de datos y si el estudiante está inscrito
+            try:
+                materia = Materia.objects.filter(nombre_materia__iexact=nombre_materia).first()
+                if materia:
+                    try:
+                        inscripcion = usuarios_materia.objects.get(usuario=usuario, materia=materia)
+                        
+                        # Procesar nota de cursada
+                        if inscripcion.nota_cursada not in [None, '', 'None', 'none']:
+                            try:
+                                nota_cursada = int(float(inscripcion.nota_cursada))
+                                numeros_letras = {
+                                    10: "Diez", 9: "Nueve", 8: "Ocho", 7: "Siete",
+                                    6: "Seis", 5: "Cinco", 4: "Cuatro", 3: "Tres",
+                                    2: "Dos", 1: "Uno"
+                                }
+                                calif_cursada = numeros_letras.get(nota_cursada, "-")
+                            except (ValueError, TypeError):
+                                nota_cursada = "-"
+                                calif_cursada = "-"
+                        
+                        # Procesar nota final
+                        if inscripcion.nota_final not in [None, '', 'None', 'none']:
+                            try:
+                                nota_final = int(float(inscripcion.nota_final))
+                                numeros_letras = {
+                                    10: "Diez", 9: "Nueve", 8: "Ocho", 7: "Siete",
+                                    6: "Seis", 5: "Cinco", 4: "Cuatro", 3: "Tres",
+                                    2: "Dos", 1: "Uno"
+                                }
+                                calif_final = numeros_letras.get(nota_final, "-")
+                            except (ValueError, TypeError):
+                                nota_final = "-"
+                                calif_final = "-"
+                        
+                        # Procesar fecha
+                        if inscripcion.ciclo_lectivo not in [None, '', 'None', 'none']:
+                            fecha_cursada = str(inscripcion.ciclo_lectivo)
+                            
+                    except usuarios_materia.DoesNotExist:
+                        pass  # Mantener valores por defecto con guiones
+            except Exception:
+                pass  # Si hay cualquier error, mantener valores por defecto
+            
+            materias_por_anio[anio].append({
+                'nombre': nombre_materia,
+                'nota_cursada': nota_cursada,
+                'nota_final': nota_final,
+                'calif_cursada': calif_cursada,
+                'calif_final': calif_final,
+                'fecha': fecha_cursada
+            })
+    
+    context = {
+        'usuario': usuario,
+        'materias_por_anio': materias_por_anio,
+        'fecha_actual': now().strftime('%d/%m/%Y')
+    }
+    
+    pdf = render_to_pdf('reportes/constancia_estudiante.html', context)
+    
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        nombre_archivo = f"constancia_{usuario.nombre_completo or usuario.email}.pdf".replace(" ", "_")
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        return response
+    
+    return HttpResponse("Error al generar el PDF", status=500)
+
+
+@login_required
+def reporte_estudiante_html(request, usuario_id):
+    """
+    Vista HTML del reporte para previsualización
+    """
+    usuario = get_object_or_404(Usuario, id=usuario_id)
+    
+    if not usuario.es_estudiante():
+        return HttpResponse("Este reporte solo está disponible para estudiantes", status=403)
+    
+    # Materias hardcodeadas de Analista de Sistemas
+    materias_hardcoded = {
+        1: [  # 1er Año
+            "Ciencia, Tecnología y Sociedad",
+            "Inglés I",
+            "Álgebra",
+            "Algoritmo y Estructura de Datos I",
+            "Sistemas y Organizaciones",
+            "Arquitectura de Computadoras",
+        ],
+        2: [  # 2do Año
+            "Inglés II",
+            "Probabilidad y Estadística II",
+            "Estadística",
+            "Algoritmo y Estructura de Datos II",
+            "Sistemas Operativos",
+            "Base de Datos",
+            "Prácticas Profesionalizantes II",
+        ],
+        3: [  # 3er Año
+            "Inglés III",
+            "Aspectos Legales de la Profesión",
+            "Seminario de Actualización",
+            "Redes y Comunicaciones",
+            "Ingeniería de Software",
+            "Algoritmo y Estructura de Datos III",
+            "Prácticas Profesionalizantes III",
+        ]
+    }
+    
+    materias_por_anio = {}
+    
+    for anio, lista_materias in materias_hardcoded.items():
+        materias_por_anio[anio] = []
+        
+        for nombre_materia in lista_materias:
+            # Valores por defecto
+            nota_cursada = "-"
+            nota_final = "-"
+            calif_cursada = "-"
+            calif_final = "-"
+            fecha_cursada = "-"
+            
+            # Buscar si existe la materia en la base de datos y si el estudiante está inscrito
+            try:
+                materia = Materia.objects.filter(nombre_materia__iexact=nombre_materia).first()
+                if materia:
+                    try:
+                        inscripcion = usuarios_materia.objects.get(usuario=usuario, materia=materia)
+                        
+                        # Procesar nota de cursada
+                        if inscripcion.nota_cursada not in [None, '', 'None', 'none']:
+                            try:
+                                nota_cursada = int(float(inscripcion.nota_cursada))
+                                numeros_letras = {
+                                    10: "Diez", 9: "Nueve", 8: "Ocho", 7: "Siete",
+                                    6: "Seis", 5: "Cinco", 4: "Cuatro", 3: "Tres",
+                                    2: "Dos", 1: "Uno"
+                                }
+                                calif_cursada = numeros_letras.get(nota_cursada, "-")
+                            except (ValueError, TypeError):
+                                nota_cursada = "-"
+                                calif_cursada = "-"
+                        
+                        # Procesar nota final
+                        if inscripcion.nota_final not in [None, '', 'None', 'none']:
+                            try:
+                                nota_final = int(float(inscripcion.nota_final))
+                                numeros_letras = {
+                                    10: "Diez", 9: "Nueve", 8: "Ocho", 7: "Siete",
+                                    6: "Seis", 5: "Cinco", 4: "Cuatro", 3: "Tres",
+                                    2: "Dos", 1: "Uno"
+                                }
+                                calif_final = numeros_letras.get(nota_final, "-")
+                            except (ValueError, TypeError):
+                                nota_final = "-"
+                                calif_final = "-"
+                        
+                        # Procesar fecha
+                        if inscripcion.ciclo_lectivo not in [None, '', 'None', 'none']:
+                            fecha_cursada = str(inscripcion.ciclo_lectivo)
+                            
+                    except usuarios_materia.DoesNotExist:
+                        pass  # Mantener valores por defecto con guiones
+            except Exception:
+                pass  # Si hay cualquier error, mantener valores por defecto
+            
+            materias_por_anio[anio].append({
+                'nombre': nombre_materia,
+                'nota_cursada': nota_cursada,
+                'nota_final': nota_final,
+                'calif_cursada': calif_cursada,
+                'calif_final': calif_final,
+                'fecha': fecha_cursada
+            })
+    
+    context = {
+        'usuario': usuario,
+        'materias_por_anio': materias_por_anio,
+        'fecha_actual': now().strftime('%d/%m/%Y')
+    }
+    
+    return render(request, 'reportes/constancia_estudiante.html', context)
