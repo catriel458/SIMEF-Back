@@ -22,7 +22,6 @@ from math import *
 from json import *
 from django.template import loader
 from django.template.loader import render_to_string
-from xhtml2pdf import pisa
 from django.http import HttpResponse
 from io import BytesIO
 
@@ -43,7 +42,6 @@ from django.contrib.auth.forms import SetPasswordForm  # ← Nuevo
 from django.contrib.auth import login    
 
 #from weasyprint import HTML, CSS
-from xhtml2pdf import pisa
 from django.utils.timezone import now
 from django.template.loader import render_to_string
 from django.shortcuts import render, get_object_or_404, redirect
@@ -51,7 +49,6 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 from django.utils.timezone import now
-from xhtml2pdf import pisa
 from io import BytesIO
 from .models import Usuario, usuarios_materia, Materia, Carrera
 
@@ -1927,88 +1924,88 @@ class FirstLoginPasswordChangeView(FormView):
 def first_login_password_change_done(request):
     return render(request, 'registration/first_login_success.html')
 
-def imprimir_mesas_finales_pdf(request):
-    from xhtml2pdf import pisa
-    from django.template.loader import render_to_string
-    from django.http import HttpResponse
-    from io import BytesIO
-    from datetime import datetime
-    import os
-    from django.conf import settings
+# def imprimir_mesas_finales_pdf(request):
+#     from xhtml2pdf import pisa
+#     from django.template.loader import render_to_string
+#     from django.http import HttpResponse
+#     from io import BytesIO
+#     from datetime import datetime
+#     import os
+#     from django.conf import settings
     
-    # Obtener todas las mesas finales
-    mesas_finales = MesaFinal.objects.select_related('materia', 'materia__carrera').order_by('llamado', 'materia__nombre_materia')
+#     # Obtener todas las mesas finales
+#     mesas_finales = MesaFinal.objects.select_related('materia', 'materia__carrera').order_by('llamado', 'materia__nombre_materia')
     
-    # Obtener información del instituto si existe
-    instituto = None
-    if Instituto.objects.exists():
-        instituto = Instituto.objects.first()
+#     # Obtener información del instituto si existe
+#     instituto = None
+#     if Instituto.objects.exists():
+#         instituto = Instituto.objects.first()
     
-    # Preparar contexto
-    context = {
-        'mesas_finales': mesas_finales,
-        'instituto': instituto,
-        'fecha_impresion': datetime.now(),
-        'total_mesas': mesas_finales.count(),
-    }
+#     # Preparar contexto
+#     context = {
+#         'mesas_finales': mesas_finales,
+#         'instituto': instituto,
+#         'fecha_impresion': datetime.now(),
+#         'total_mesas': mesas_finales.count(),
+#     }
     
-    # Renderizar template a HTML
-    html_string = render_to_string('finales/mesas_finales_cartel_pdf.html', context)
+#     # Renderizar template a HTML
+#     html_string = render_to_string('finales/mesas_finales_cartel_pdf.html', context)
     
-    # Crear archivo PDF con xhtml2pdf
-    result = BytesIO()
+#     # Crear archivo PDF con xhtml2pdf
+#     result = BytesIO()
     
-    # Función para resolver URLs de archivos estáticos
-    def link_callback(uri, rel):
-        """
-        Convert HTML URIs to absolute system paths so xhtml2pdf can access those resources
-        """
-        try:
-            if uri.startswith(settings.STATIC_URL):
-                path = os.path.join(settings.STATIC_ROOT or settings.BASE_DIR / 'static', 
-                                   uri.replace(settings.STATIC_URL, ""))
-                if os.path.isfile(path):
-                    return path
-            elif uri.startswith(settings.MEDIA_URL):
-                path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ""))
-                if os.path.isfile(path):
-                    return path
-        except:
-            pass
-        return None
+#     # Función para resolver URLs de archivos estáticos
+#     def link_callback(uri, rel):
+#         """
+#         Convert HTML URIs to absolute system paths so xhtml2pdf can access those resources
+#         """
+#         try:
+#             if uri.startswith(settings.STATIC_URL):
+#                 path = os.path.join(settings.STATIC_ROOT or settings.BASE_DIR / 'static', 
+#                                    uri.replace(settings.STATIC_URL, ""))
+#                 if os.path.isfile(path):
+#                     return path
+#             elif uri.startswith(settings.MEDIA_URL):
+#                 path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ""))
+#                 if os.path.isfile(path):
+#                     return path
+#         except:
+#             pass
+#         return None
     
-    # Generar PDF
-    try:
-        pdf_status = pisa.pisaDocument(
-            BytesIO(html_string.encode("UTF-8")), 
-            result, 
-            link_callback=link_callback,
-            encoding='UTF-8'
-        )
+#     # Generar PDF
+#     try:
+#         pdf_status = pisa.pisaDocument(
+#             BytesIO(html_string.encode("UTF-8")), 
+#             result, 
+#             link_callback=link_callback,
+#             encoding='UTF-8'
+#         )
         
-        # Verificar si se generó correctamente
-        if not pdf_status.err:
-            # Crear respuesta HTTP para mostrar en línea
-            pdf_content = result.getvalue()
-            result.close()
+#         # Verificar si se generó correctamente
+#         if not pdf_status.err:
+#             # Crear respuesta HTTP para mostrar en línea
+#             pdf_content = result.getvalue()
+#             result.close()
             
-            response = HttpResponse(pdf_content, content_type='application/pdf')
-            # Eliminar completamente Content-Disposition para evitar interceptación
-            # response['Content-Disposition'] = f'inline; filename="mesas_finales_cartel_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf"'
-            response['Content-Length'] = len(pdf_content)
-            # Headers adicionales para forzar visualización en navegador
-            response['Cache-Control'] = 'no-cache'
-            response['X-Frame-Options'] = 'SAMEORIGIN'
+#             response = HttpResponse(pdf_content, content_type='application/pdf')
+#             # Eliminar completamente Content-Disposition para evitar interceptación
+#             # response['Content-Disposition'] = f'inline; filename="mesas_finales_cartel_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf"'
+#             response['Content-Length'] = len(pdf_content)
+#             # Headers adicionales para forzar visualización en navegador
+#             response['Cache-Control'] = 'no-cache'
+#             response['X-Frame-Options'] = 'SAMEORIGIN'
             
-            return response
-        else:
-            # Si hay error en la generación del PDF
-            result.close()
-            return HttpResponse(f"Error al generar el PDF: {pdf_status.err}", status=500)
+#             return response
+#         else:
+#             # Si hay error en la generación del PDF
+#             result.close()
+#             return HttpResponse(f"Error al generar el PDF: {pdf_status.err}", status=500)
             
-    except Exception as e:
-        result.close()
-        return HttpResponse(f"Error inesperado al generar el PDF: {str(e)}", status=500)
+#     except Exception as e:
+#         result.close()
+#         return HttpResponse(f"Error inesperado al generar el PDF: {str(e)}", status=500)
     
     
 def render_to_pdf(template_src, context_dict={}):
