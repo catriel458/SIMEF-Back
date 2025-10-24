@@ -13,9 +13,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-utp902oup=*=ltlzswjy)s5l-ko5c)ju@c2sx(5n6#&(d0(2)@')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') != 'False'
 
-ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1', '.now.sh']
+ALLOWED_HOSTS = ['*']  # Cambiar a * temporalmente para debugging
 
 # Application definition
 INSTALLED_APPS = [
@@ -35,6 +35,7 @@ if DEBUG and not os.environ.get('VERCEL'):
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise debe estar aquí
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -94,18 +95,19 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Directorios donde buscar archivos estáticos
-STATICFILES_DIRS = []
-if os.path.exists(os.path.join(BASE_DIR, 'inscripcionFinales', 'static')):
-    STATICFILES_DIRS.append(os.path.join(BASE_DIR, 'inscripcionFinales', 'static'))
-if os.path.exists(os.path.join(BASE_DIR, 'static')):
-    STATICFILES_DIRS.append(os.path.join(BASE_DIR, 'static'))
+STATICFILES_DIRS = [
+    BASE_DIR / 'inscripcionFinales' / 'static',
+]
 
-# Directorio donde se recopilarán archivos estáticos
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# Directorio donde se recopilarán archivos estáticos para producción
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Configuración de WhiteNoise para servir archivos estáticos
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Mensajes estandar (constantes)
 MESSAGE_TAGS = {
@@ -128,7 +130,7 @@ LOGOUT_REDIRECT_URL = 'inicio'
 
 # Email configuration
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587  # Cambiado de 25 a 587
+EMAIL_PORT = 587
 EMAIL_HOST_USER = 'proyec.i210@gmail.com'
 EMAIL_HOST_PASSWORD = 'ocqr hryj waft gofb'
 EMAIL_USE_TLS = True
