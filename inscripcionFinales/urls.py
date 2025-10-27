@@ -65,7 +65,7 @@ urlpatterns = [
     path('estudiantes/<int:usuario_id>/reporte_usuario_materias/', reporte_usuario_materias, name='reporte_usuario_materias'),
     path('reporte_html/<int:usuario_id>', reporte_estudiante_html, name='reporte_estudiante_html'),
 
-    # path('mesas_finales/cartel_pdf/', imprimir_mesas_finales_pdf, name='imprimir_mesas_finales_pdf'),
+    path('mesas_finales/cartel_pdf/', imprimir_mesas_finales_pdf, name='imprimir_mesas_finales_pdf'),
 
     #Alta e Inscripcion mesa de final Administrativo
     path('mesas_finales/', MesasFinalesListView.as_view(), name='mesas_finales_list'),
@@ -115,7 +115,6 @@ urlpatterns = [
     path('estudiantes/<int:pk>/eliminar/', EstudianteDeleteView.as_view(), name='estudiante_eliminar'),
     path('cargaMasivaEstudiantes/',login_required(cargar_usuarios),name='cargaMasivaEstudiantes'),
     path('ver_usuario_materia/',listar_usuarios_materia,name='verUsuarioMateria'),
-    # path('mesas_finales/cartel_pdf/', imprimir_mesas_finales_pdf, name='imprimir_mesas_finales_pdf'),
     # Primer logeo
 
      path('change_password_first/', FirstLoginPasswordChangeView.as_view(), name='first_login_password_change'),

@@ -52,6 +52,17 @@ from django.utils.timezone import now
 from io import BytesIO
 from .models import Usuario, usuarios_materia, Materia, Carrera
 
+from django.http import HttpResponse
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.pdfgen import canvas
+import io
+from django.utils.timezone import now
+
 # ... aquí van tus otros imports existentes
 
 class HomePageView(TemplateView):
@@ -1924,88 +1935,176 @@ class FirstLoginPasswordChangeView(FormView):
 def first_login_password_change_done(request):
     return render(request, 'registration/first_login_success.html')
 
-# def imprimir_mesas_finales_pdf(request):
-#     from xhtml2pdf import pisa
-#     from django.template.loader import render_to_string
-#     from django.http import HttpResponse
-#     from io import BytesIO
-#     from datetime import datetime
-#     import os
-#     from django.conf import settings
-    
-#     # Obtener todas las mesas finales
-#     mesas_finales = MesaFinal.objects.select_related('materia', 'materia__carrera').order_by('llamado', 'materia__nombre_materia')
-    
-#     # Obtener información del instituto si existe
-#     instituto = None
-#     if Instituto.objects.exists():
-#         instituto = Instituto.objects.first()
-    
-#     # Preparar contexto
-#     context = {
-#         'mesas_finales': mesas_finales,
-#         'instituto': instituto,
-#         'fecha_impresion': datetime.now(),
-#         'total_mesas': mesas_finales.count(),
-#     }
-    
-#     # Renderizar template a HTML
-#     html_string = render_to_string('finales/mesas_finales_cartel_pdf.html', context)
-    
-#     # Crear archivo PDF con xhtml2pdf
-#     result = BytesIO()
-    
-#     # Función para resolver URLs de archivos estáticos
-#     def link_callback(uri, rel):
-#         """
-#         Convert HTML URIs to absolute system paths so xhtml2pdf can access those resources
-#         """
-#         try:
-#             if uri.startswith(settings.STATIC_URL):
-#                 path = os.path.join(settings.STATIC_ROOT or settings.BASE_DIR / 'static', 
-#                                    uri.replace(settings.STATIC_URL, ""))
-#                 if os.path.isfile(path):
-#                     return path
-#             elif uri.startswith(settings.MEDIA_URL):
-#                 path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ""))
-#                 if os.path.isfile(path):
-#                     return path
-#         except:
-#             pass
-#         return None
-    
-#     # Generar PDF
-#     try:
-#         pdf_status = pisa.pisaDocument(
-#             BytesIO(html_string.encode("UTF-8")), 
-#             result, 
-#             link_callback=link_callback,
-#             encoding='UTF-8'
-#         )
+def imprimir_mesas_finales_pdf(request):
+    """
+    Genera un PDF con el listado de mesas de finales vigentes
+    Compatible con Vercel y ambientes serverless
+    """
+    try:
+        # Crear el PDF en memoria
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, 
+            pagesize=A4,
+            rightMargin=30,
+            leftMargin=30,
+            topMargin=30,
+            bottomMargin=30
+        )
         
-#         # Verificar si se generó correctamente
-#         if not pdf_status.err:
-#             # Crear respuesta HTTP para mostrar en línea
-#             pdf_content = result.getvalue()
-#             result.close()
+        # Lista para almacenar elementos del PDF
+        elements = []
+        
+        # Estilos
+        styles = getSampleStyleSheet()
+        
+        # Estilo personalizado para el título
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=22,
+            textColor=colors.HexColor('#2c3e50'),
+            spaceAfter=20,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        
+        # Estilo para subtítulo
+        subtitle_style = ParagraphStyle(
+            'Subtitle',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=colors.HexColor('#7f8c8d'),
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            fontName='Helvetica'
+        )
+        
+        # Título principal
+        elements.append(Paragraph("MESAS DE EXÁMENES FINALES", title_style))
+        
+        # Fecha de generación
+        fecha_actual = now().strftime('%d/%m/%Y %H:%M')
+        elements.append(Paragraph(f"Generado el: {fecha_actual}", subtitle_style))
+        
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Obtener mesas finales vigentes
+        mesas = MesaFinal.objects.select_related(
+            'materia', 
+            'materia__carrera',
+            'materia__profesor'
+        ).filter(vigente=True).order_by('llamado', 'materia__nombre_materia')
+        
+        if not mesas.exists():
+            # Si no hay mesas, mostrar mensaje
+            no_mesas_style = ParagraphStyle(
+                'NoMesas',
+                parent=styles['Normal'],
+                fontSize=14,
+                textColor=colors.HexColor('#e74c3c'),
+                alignment=TA_CENTER
+            )
+            elements.append(Paragraph("No hay mesas de finales vigentes en este momento", no_mesas_style))
+        else:
+            # Crear encabezados de la tabla
+            data = [['Materia', 'Carrera', 'Fecha', 'Horario', 'Profesor', 'Inscripción']]
             
-#             response = HttpResponse(pdf_content, content_type='application/pdf')
-#             # Eliminar completamente Content-Disposition para evitar interceptación
-#             # response['Content-Disposition'] = f'inline; filename="mesas_finales_cartel_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf"'
-#             response['Content-Length'] = len(pdf_content)
-#             # Headers adicionales para forzar visualización en navegador
-#             response['Cache-Control'] = 'no-cache'
-#             response['X-Frame-Options'] = 'SAMEORIGIN'
+            # Agregar datos de cada mesa
+            for mesa in mesas:
+                # Determinar estado de inscripción
+                inscripcion = "✓ Abierta" if mesa.inscripcionAbierta else "✗ Cerrada"
+                
+                # Obtener nombre del profesor
+                profesor = mesa.materia.profesor.nombre_completo if mesa.materia.profesor and mesa.materia.profesor.nombre_completo else '-'
+                
+                # Obtener nombre de carrera
+                carrera = mesa.materia.carrera.nombre_carrera if mesa.materia.carrera else '-'
+                
+                data.append([
+                    mesa.materia.nombre_materia,
+                    carrera,
+                    mesa.llamado.strftime('%d/%m/%Y'),
+                    mesa.llamado.strftime('%H:%M'),
+                    profesor,
+                    inscripcion
+                ])
             
-#             return response
-#         else:
-#             # Si hay error en la generación del PDF
-#             result.close()
-#             return HttpResponse(f"Error al generar el PDF: {pdf_status.err}", status=500)
+            # Crear tabla con anchos de columna personalizados
+            table = Table(data, colWidths=[
+                2.2*inch,  # Materia
+                1.8*inch,  # Carrera
+                0.9*inch,  # Fecha
+                0.7*inch,  # Horario
+                1.5*inch,  # Profesor
+                0.9*inch   # Inscripción
+            ])
             
-#     except Exception as e:
-#         result.close()
-#         return HttpResponse(f"Error inesperado al generar el PDF: {str(e)}", status=500)
+            # Aplicar estilos a la tabla
+            table.setStyle(TableStyle([
+                # Estilo del encabezado
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, 0), 12),
+                
+                # Estilo del cuerpo
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#3498db')),
+                
+                # Alternancia de colores en filas
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+                
+                # Padding
+                ('TOPPADDING', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            
+            elements.append(table)
+            
+            # Agregar espacio y pie de página
+            elements.append(Spacer(1, 0.5*inch))
+            
+            footer_style = ParagraphStyle(
+                'Footer',
+                parent=styles['Normal'],
+                fontSize=9,
+                textColor=colors.HexColor('#95a5a6'),
+                alignment=TA_CENTER
+            )
+            
+            total_mesas = mesas.count()
+            elements.append(Paragraph(f"Total de mesas: {total_mesas}", footer_style))
+        
+        # Construir el PDF
+        doc.build(elements)
+        
+        # Obtener el contenido del PDF
+        pdf = buffer.getvalue()
+        buffer.close()
+        
+        # Crear respuesta HTTP con el PDF
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="mesas_finales.pdf"'
+        response.write(pdf)
+        
+        return response
+        
+    except Exception as e:
+        # En caso de error, retornar mensaje descriptivo
+        error_msg = f"Error al generar el PDF: {str(e)}"
+        print(error_msg)  # Para logs de Vercel
+        return HttpResponse(error_msg, status=500)
     
     
 def render_to_pdf(template_src, context_dict={}):
